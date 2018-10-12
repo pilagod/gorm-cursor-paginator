@@ -333,11 +333,11 @@ func TestGetCursorQueryTemplate(t *testing.T) {
 		{[]string{"CreatedAt", "ID"}, ">", "created_at > ? OR created_at = ? AND id > ?"},
 		{[]string{"CreatedAt", "UpdatedAt", "ID"}, "<", "created_at < ? OR created_at = ? AND updated_at < ? OR created_at = ? AND updated_at = ? AND id < ?"},
 	} {
-		paginator := New()
+		p := New()
 
-		paginator.SetKeys(testCase.keys...)
+		p.SetKeys(testCase.keys...)
 
-		got := paginator.getCursorQueryTemplate(testCase.operator)
+		got := p.getCursorQueryTemplate(testCase.operator)
 
 		assertEqual(t, index+1, got, testCase.expected)
 	}
@@ -353,10 +353,10 @@ func TestGetCursorQueryArgs(t *testing.T) {
 		{[]interface{}{"a", "b", "c"}, "a,a,b,a,b,c"},
 		{[]interface{}{"a", "b", "c", 1, 2, 3}, "a,a,b,a,b,c,a,b,c,1,a,b,c,1,2,a,b,c,1,2,3"},
 	} {
-		paginator := New()
+		p := New()
 
 		got := combine(
-			paginator.getCursorQueryArgs(testCase.cursors),
+			p.getCursorQueryArgs(testCase.cursors),
 		)
 		assertEqual(t, index+1, got, testCase.expected)
 	}
@@ -385,13 +385,13 @@ func TestGetOperator(t *testing.T) {
 		{"", "", ASC, "="},
 		{"", "", DESC, "="},
 	} {
-		paginator := New()
+		p := New()
 
-		paginator.SetAfterCursor(testCase.afterCursor)
-		paginator.SetBeforeCursor(testCase.beforeCursor)
-		paginator.SetOrder(testCase.order)
+		p.SetAfterCursor(testCase.afterCursor)
+		p.SetBeforeCursor(testCase.beforeCursor)
+		p.SetOrder(testCase.order)
 
-		got := paginator.getOperator()
+		got := p.getOperator()
 
 		assertEqual(t, index+1, got, testCase.expected)
 	}
@@ -411,12 +411,12 @@ func TestGetOrderWithMultipleKeys(t *testing.T) {
 		{[]string{"CreatedAt", "ID"}, ASC, "created_at ASC, id ASC"},
 		{[]string{"CreatedAt", "UpdatedAt", "ID"}, DESC, "created_at DESC, updated_at DESC, id DESC"},
 	} {
-		paginator := New()
+		p := New()
 
-		paginator.SetKeys(testCase.keys...)
-		paginator.SetOrder(testCase.order)
+		p.SetKeys(testCase.keys...)
+		p.SetOrder(testCase.order)
 
-		got := paginator.getOrder()
+		got := p.getOrder()
 
 		assertEqual(t, index+1, got, testCase.expected)
 	}
