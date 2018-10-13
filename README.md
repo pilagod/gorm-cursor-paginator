@@ -5,6 +5,13 @@ gorm-cursor-paginator
 
 A paginator doing cursor-based pagination based on [GORM](https://github.com/jinzhu/gorm)
 
+Installation
+------------
+
+```sh
+go get -u github.com/pilagod/gorm-cursor-paginator
+```
+
 Usage by Example
 ----------------
 
