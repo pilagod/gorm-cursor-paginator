@@ -35,7 +35,7 @@ import (
     paginator "github.com/pilagod/gorm-cursor-paginator"
 )
 
-func InitModelPaginatorFrom(q PagingQuery) {
+func InitModelPaginatorFrom(q PagingQuery) paginator.Paginator {
     p := paginator.New()
 
     p.SetKeys("CreatedAt", "ID") // [defualt: "ID"] (order of keys matters)
@@ -57,6 +57,7 @@ func InitModelPaginatorFrom(q PagingQuery) {
             p.SetOrder(paginator.ASC) // [default: paginator.DESC]
         }
     }
+    return p
 }
 ```
 
