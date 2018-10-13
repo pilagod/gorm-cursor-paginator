@@ -95,3 +95,10 @@ type Cursors struct {
 ```
 
 That's all ! Enjoy your paging in the GORM world :tada:
+
+License
+-------
+
+© Chun-Yan Ho (pilagod), 2018-NOW
+
+Released under the [MIT License](https://github.com/pilagod/gorm-cursor-paginator/blob/master/LICENSE)
