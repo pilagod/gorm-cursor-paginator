@@ -74,7 +74,7 @@ func TestPaginateWithDefaultOptions(t *testing.T) {
 	p.Paginate(db, &dummy)
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expections: %s", err)
+		t.Errorf("unfulfilled expectations: %s", err)
 	}
 }
 
@@ -94,7 +94,7 @@ func TestPaginateWithLimit(t *testing.T) {
 		p.Paginate(db, &dummy)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expections: %s", err)
+		t.Errorf("unfulfilled expectations: %s", err)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestPaginateWithAfterCursor(t *testing.T) {
 		p.Paginate(db, &dummy)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expections: %s", err)
+		t.Errorf("unfulfilled expectations: %s", err)
 	}
 }
 
@@ -172,7 +172,7 @@ func TestPaginateWithBeforeCursor(t *testing.T) {
 		p.Paginate(db, &dummy)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expections: %s", err)
+		t.Errorf("unfulfilled expectations: %s", err)
 	}
 }
 
