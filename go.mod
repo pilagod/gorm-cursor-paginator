@@ -13,4 +13,5 @@ require (
 	github.com/jinzhu/now v1.0.1 // indirect
 	github.com/lib/pq v1.0.0 // indirect
 	github.com/mattn/go-sqlite3 v1.10.0 // indirect
+	github.com/stretchr/testify v1.2.2
 )
