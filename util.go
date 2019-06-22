@@ -45,7 +45,7 @@ func parseFieldWithType(fieldWithType string) (string, fieldType) {
 	return field, fieldType
 }
 
-func flip(order order) order {
+func flip(order Order) Order {
 	if order == ASC {
 		return DESC
 	}

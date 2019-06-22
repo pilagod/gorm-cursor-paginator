@@ -9,12 +9,13 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-type order string
+// Order type for order
+type Order string
 
 // Orders
 const (
-	ASC  order = "ASC"
-	DESC order = "DESC"
+	ASC  Order = "ASC"
+	DESC Order = "DESC"
 )
 
 const (
@@ -34,7 +35,7 @@ type Paginator struct {
 	keys    []string
 	sqlKeys []string
 	limit   int
-	order   order
+	order   Order
 }
 
 // Cursor cursor data
@@ -64,7 +65,7 @@ func (p *Paginator) SetLimit(limit int) {
 }
 
 // SetOrder sets paging order
-func (p *Paginator) SetOrder(order order) {
+func (p *Paginator) SetOrder(order Order) {
 	p.order = order
 }
 
