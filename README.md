@@ -17,14 +17,13 @@ go get -u github.com/pilagod/gorm-cursor-paginator
 Usage by Example
 ----------------
 
-Assume there is an optional query struct for paging:
+Assume there is an query struct for paging:
 
 ```go
 type PagingQuery struct {
-    AfterCursor     *string
-    BeforeCursor    *string
-    Limit           *int
-    Order           *string
+    Cursor paginator.Cursor
+    Limit  *int
+    Order  *string
 }
 ```
 
@@ -32,39 +31,37 @@ and a GORM model:
 
 ```go
 type Model struct {
-    ID          uint
+    ID          int
     CreatedAt   time.Time
 }
 ```
 
-You can simply build up a cursor paginator from the PagingQuery like:
+You can simply build up a new cursor paginator from the PagingQuery like:
 
 ```go
 import (
     paginator "github.com/pilagod/gorm-cursor-paginator"
 )
 
-func InitModelPaginatorFrom(q PagingQuery) paginator.Paginator {
+func GetModelPaginator(q PagingQuery) *paginator.Paginator {
     p := paginator.New()
 
-    p.SetKeys("CreatedAt", "ID") // [defualt: "ID"] (order of keys matters)
+    p.SetKeys("CreatedAt", "ID") // [defualt: "ID"] (supports multiple keys, and order of keys matters)
 
-    if q.AfterCursor != nil {
-        p.SetAfterCursor(*q.AfterCursor) // [default: ""]
+    if q.Cursor.After != nil {
+        p.SetAfterCursor(*q.Cursor.After) // [default: nil]
     }
 
-    if q.BeforeCursor != nil {
-        p.SetBeforeCursor(*q.BeforeCursor) // [default: ""]
+    if q.Cursor.Before != nil {
+        p.SetBeforeCursor(*q.Cursor.Before) // [default: nil]
     }
 
     if q.Limit != nil {
         p.SetLimit(*q.Limit) // [default: 10]
     }
 
-    if q.Order != nil {
-        if *q.Order == "ascending" {
-            p.SetOrder(paginator.ASC) // [default: paginator.DESC]
-        }
+    if q.Order != nil && *q.Order == "asc" {
+        p.SetOrder(paginator.ASC) // [default: paginator.DESC]
     }
     return p
 }
@@ -73,14 +70,14 @@ func InitModelPaginatorFrom(q PagingQuery) paginator.Paginator {
 Then you can start to do pagination easily with GORM:
 
 ```go
-func Find(db *gorm.DB, q PagingQuery) ([]Model, paginator.Cursors, error) {
+func Find(db *gorm.DB, q PagingQuery) ([]Model, paginator.Cursor, error) {
     var models []Model
 
     stmt := db.Where(/* ... other filters ... */)
     stmt = db.Or(/* ... more other filters ... */)
 
-    // init paginator for Model
-    p := InitModelPaginatorFrom(q)
+    // get paginator for Model
+    p := GetModelPaginator(q)
 
     // use GORM-like syntax to do pagination
     result := p.Paginate(stmt, &models)
@@ -88,19 +85,19 @@ func Find(db *gorm.DB, q PagingQuery) ([]Model, paginator.Cursors, error) {
     if result.Error != nil {
         // ...
     }
-    // get cursors for next iteration
-    cursors := p.GetNextCursors()
+    // get cursor for next iteration
+    cursor := p.GetNextCursor()
 
-    return models, cursors, nil
+    return models, cursor, nil
 }
 ```
 
-After pagination, you can call `GetNextCursors()`, which returns a `Cursors` struct, to get cursors for next iteration:
+After paginating, you can call `GetNextCursor()`, which returns a `Cursor` struct containing cursor for next iteration:
 
 ```go
-type Cursors struct {
-    AfterCursor     string
-    BeforeCursor    string
+type Cursor struct {
+    After  *string `json:"after"`
+    Before *string `json:"before"`
 }
 ```
 
