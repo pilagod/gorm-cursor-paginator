@@ -74,6 +74,31 @@ func (s *paginatorSuite) TestPaginateWithDefaultOptions() {
 	s.assertOnlyAfter(cursor)
 }
 
+func (s *paginatorSuite) TestPaginateAfterCursorShouldTakePrecedenceOverBeforeCursor() {
+	var orders = s.givenOrders(10)
+
+	var o1 []Order
+	p1 := New()
+	p1.SetLimit(3)
+	cursor := s.paginate(p1, s.db, &o1)
+	s.assertOnlyAfter(cursor)
+
+	var o2 []Order
+	p2 := New()
+	p2.SetLimit(3)
+	p2.SetAfterCursor(*cursor.After)
+	cursor = s.paginate(p2, s.db, &o2)
+	s.assertBoth(cursor)
+
+	var o3 []Order
+	p3 := New()
+	p3.SetAfterCursor(*cursor.After)
+	p3.SetBeforeCursor(*cursor.Before)
+	cursor = s.paginate(p3, s.db, &o3)
+	s.assertOrders(orders, 3, 0, o3)
+	s.assertOnlyBefore(cursor)
+}
+
 func (s *paginatorSuite) TestPaginateWithSingleKey() {
 	var orders = []Order{
 		Order{CreatedAt: time.Now()},

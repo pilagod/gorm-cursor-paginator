@@ -76,7 +76,7 @@ func (p *Paginator) GetNextCursor() Cursor {
 // Paginate paginates data
 func (p *Paginator) Paginate(stmt *gorm.DB, out interface{}) *gorm.DB {
 	p.initOptions()
-	p.initModel(stmt, out)
+	p.initModelInfo(stmt, out)
 	result := p.appendPagingQuery(stmt).Find(out)
 	// out must be a pointer or gorm will panic above
 	if reflect.ValueOf(out).Elem().Type().Kind() == reflect.Slice && reflect.ValueOf(out).Elem().Len() > 0 {
@@ -99,7 +99,7 @@ func (p *Paginator) initOptions() {
 	}
 }
 
-func (p *Paginator) initModel(db *gorm.DB, out interface{}) {
+func (p *Paginator) initModelInfo(db *gorm.DB, out interface{}) {
 	table := db.NewScope(out).TableName()
 	for _, key := range p.keys {
 		p.sqlKeys = append(p.sqlKeys, fmt.Sprintf("%s.%s", table, strcase.ToSnake(key)))
@@ -143,7 +143,7 @@ func (p *Paginator) getCursorQueryArgs(fields []interface{}) (args []interface{}
 
 func (p *Paginator) getOperator() string {
 	if (p.hasAfterCursor() && p.order == ASC) ||
-		(p.hasBeforeCursor() && p.order == DESC) {
+		(p.hasBeforeCursorOnly() && p.order == DESC) {
 		return ">"
 	}
 	return "<"
@@ -170,11 +170,11 @@ func (p *Paginator) postProcess(out interface{}) {
 	if p.hasBeforeCursorOnly() {
 		elems.Set(reverse(elems))
 	}
-	if p.hasBeforeCursor() || hasMore {
+	if p.hasBeforeCursorOnly() || hasMore {
 		cursor := p.encode(elems.Index(elems.Len() - 1))
 		p.next.After = &cursor
 	}
-	if p.hasAfterCursor() || (hasMore && p.hasBeforeCursor()) {
+	if p.hasAfterCursor() || (hasMore && p.hasBeforeCursorOnly()) {
 		cursor := p.encode(elems.Index(0))
 		p.next.Before = &cursor
 	}
