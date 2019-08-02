@@ -185,7 +185,11 @@ func (p *Paginator) postProcess(out interface{}) {
 func (p *Paginator) encode(v reflect.Value) string {
 	fields := make([]string, len(p.keys))
 	for index, key := range p.keys {
-		fields[index] = convert(v.FieldByName(key).Interface())
+		if v.Kind() == reflect.Ptr {
+			fields[index] = convert(reflect.Indirect(v).FieldByName(key).Interface())
+		} else {
+			fields[index] = convert(v.FieldByName(key).Interface())
+		}
 	}
 	return encodeBase64(fields)
 }

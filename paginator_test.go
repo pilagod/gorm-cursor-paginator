@@ -74,6 +74,36 @@ func (s *paginatorSuite) TestPaginateWithDefaultOptions() {
 	s.assertOnlyAfter(cursor)
 }
 
+func (s *paginatorSuite) TestPaginateWithSliceStructPointersDefaultOptions() {
+	var ordersPtrs []*order
+	var orders = s.givenOrders(12)
+
+	// Create Slice of order pointers
+	for i := 0; i < len(orders); i++ {
+		ordersPtrs = append(ordersPtrs, &orders[i])
+	}
+
+	var o1 []*order
+	p1 := New()
+	cursor := s.paginate(p1, s.db, &o1)
+	s.assertPtrOrders(ordersPtrs, 11, 2, o1)
+	s.assertOnlyAfter(cursor)
+
+	var o2 []*order
+	p2 := New()
+	p2.SetAfterCursor(*cursor.After)
+	cursor = s.paginate(p2, s.db, &o2)
+	s.assertPtrOrders(ordersPtrs, 1, 0, o2)
+	s.assertOnlyBefore(cursor)
+
+	var o3 []*order
+	p3 := New()
+	p3.SetBeforeCursor(*cursor.Before)
+	cursor = s.paginate(p3, s.db, &o3)
+	s.Equal(o1, o3)
+	s.assertOnlyAfter(cursor)
+}
+
 func (s *paginatorSuite) TestPaginateAfterCursorShouldTakePrecedenceOverBeforeCursor() {
 	var orders = s.givenOrders(10)
 
@@ -320,6 +350,11 @@ func (s *paginatorSuite) assertBoth(cursor Cursor) {
 }
 
 func (s *paginatorSuite) assertOrders(expected []order, head, tail int, got []order) {
+	s.Equal(expected[head].ID, got[first(got)].ID)
+	s.Equal(expected[tail].ID, got[last(got)].ID)
+}
+
+func (s *paginatorSuite) assertPtrOrders(expected []*order, head, tail int, got []*order) {
 	s.Equal(expected[head].ID, got[first(got)].ID)
 	s.Equal(expected[tail].ID, got[last(got)].ID)
 }
