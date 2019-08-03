@@ -110,9 +110,9 @@ func (p *Paginator) initModelInfo(db *gorm.DB, out interface{}) {
 func (p *Paginator) appendPagingQuery(stmt *gorm.DB) *gorm.DB {
 	var fields []interface{}
 	if p.hasAfterCursor() {
-		fields = p.decode(*p.cursor.After)
+		fields = Decode(*p.cursor.After)
 	} else if p.hasBeforeCursor() {
-		fields = p.decode(*p.cursor.Before)
+		fields = Decode(*p.cursor.Before)
 	}
 	if len(fields) > 0 {
 		stmt = stmt.Where(
@@ -144,7 +144,7 @@ func (p *Paginator) getCursorQueryArgs(fields []interface{}) (args []interface{}
 
 func (p *Paginator) getOperator() string {
 	if (p.hasAfterCursor() && p.order == ASC) ||
-		(p.hasBeforeCursorOnly() && p.order == DESC) {
+		(p.hasBeforeCursor() && p.order == DESC) {
 		return ">"
 	}
 	return "<"
@@ -152,7 +152,7 @@ func (p *Paginator) getOperator() string {
 
 func (p *Paginator) getOrder() string {
 	order := p.order
-	if p.hasBeforeCursorOnly() {
+	if p.hasBeforeCursor() {
 		order = flip(p.order)
 	}
 	orders := make([]string, len(p.sqlKeys))
@@ -168,39 +168,18 @@ func (p *Paginator) postProcess(out interface{}) {
 	if hasMore {
 		elems.Set(elems.Slice(0, elems.Len()-1))
 	}
-	if p.hasBeforeCursorOnly() {
+	if p.hasBeforeCursor() {
 		elems.Set(reverse(elems))
 	}
-	if p.hasBeforeCursorOnly() || hasMore {
-		cursor := p.encode(elems.Index(elems.Len() - 1))
+	if p.hasBeforeCursor() || hasMore {
+		cursor := Encode(elems.Index(elems.Len()-1), p.keys)
 		p.next.After = &cursor
 	}
-	if p.hasAfterCursor() || (hasMore && p.hasBeforeCursorOnly()) {
-		cursor := p.encode(elems.Index(0))
+	if p.hasAfterCursor() || (hasMore && p.hasBeforeCursor()) {
+		cursor := Encode(elems.Index(0), p.keys)
 		p.next.Before = &cursor
 	}
 	return
-}
-
-func (p *Paginator) encode(v reflect.Value) string {
-	fields := make([]string, len(p.keys))
-	for index, key := range p.keys {
-		if v.Kind() == reflect.Ptr {
-			fields[index] = convert(reflect.Indirect(v).FieldByName(key).Interface())
-		} else {
-			fields[index] = convert(v.FieldByName(key).Interface())
-		}
-	}
-	return encodeBase64(fields)
-}
-
-func (p *Paginator) decode(cursor string) []interface{} {
-	fieldsWithType := decodeBase64(cursor)
-	fields := make([]interface{}, len(fieldsWithType))
-	for index, fieldWithType := range fieldsWithType {
-		fields[index] = revert(fieldWithType)
-	}
-	return fields
 }
 
 func (p *Paginator) hasAfterCursor() bool {
@@ -208,9 +187,5 @@ func (p *Paginator) hasAfterCursor() bool {
 }
 
 func (p *Paginator) hasBeforeCursor() bool {
-	return p.cursor.Before != nil
-}
-
-func (p *Paginator) hasBeforeCursorOnly() bool {
-	return !p.hasAfterCursor() && p.hasBeforeCursor()
+	return !p.hasAfterCursor() && p.cursor.Before != nil
 }
