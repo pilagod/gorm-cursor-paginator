@@ -75,25 +75,19 @@ func (s *paginatorSuite) TestPaginateWithDefaultOptions() {
 }
 
 func (s *paginatorSuite) TestPaginateWithSliceStructPointersDefaultOptions() {
-	var ordersPtrs []*order
-	var orders = s.givenOrders(12)
-
-	// Create Slice of order pointers
-	for i := 0; i < len(orders); i++ {
-		ordersPtrs = append(ordersPtrs, &orders[i])
-	}
+	var ptrOrders = s.givenPtrOrders(12)
 
 	var o1 []*order
 	p1 := New()
 	cursor := s.paginate(p1, s.db, &o1)
-	s.assertPtrOrders(ordersPtrs, 11, 2, o1)
+	s.assertPtrOrders(ptrOrders, 11, 2, o1)
 	s.assertOnlyAfter(cursor)
 
 	var o2 []*order
 	p2 := New()
 	p2.SetAfterCursor(*cursor.After)
 	cursor = s.paginate(p2, s.db, &o2)
-	s.assertPtrOrders(ordersPtrs, 1, 0, o2)
+	s.assertPtrOrders(ptrOrders, 1, 0, o2)
 	s.assertOnlyBefore(cursor)
 
 	var o3 []*order
@@ -130,14 +124,13 @@ func (s *paginatorSuite) TestPaginateAfterCursorShouldTakePrecedenceOverBeforeCu
 }
 
 func (s *paginatorSuite) TestPaginateWithSingleKey() {
-	var orders = []order{
+	var orders = s.givenCustomOrders([]order{
 		{CreatedAt: time.Now()},
 		{CreatedAt: time.Now().Add(1 * time.Hour)},
 		{CreatedAt: time.Now().Add(-1 * time.Hour)},
 		{CreatedAt: time.Now().Add(2 * time.Hour)},
 		{CreatedAt: time.Now().Add(-2 * time.Hour)},
-	}
-	s.createOrders(orders)
+	})
 	var p = func() *Paginator {
 		p := New()
 		p.SetKeys("CreatedAt")
@@ -167,14 +160,13 @@ func (s *paginatorSuite) TestPaginateWithSingleKey() {
 }
 
 func (s *paginatorSuite) TestPaginateWithMultipleKeys() {
-	var orders = []order{
+	var orders = s.givenCustomOrders([]order{
 		{CreatedAt: time.Now().Add(2 * time.Hour)},
 		{CreatedAt: time.Now()},
 		{CreatedAt: time.Now().Add(3 * time.Hour)},
 		{CreatedAt: time.Now().Add(1 * time.Hour)},
 		{CreatedAt: time.Now().Add(2 * time.Hour)},
-	}
-	s.createOrders(orders)
+	})
 	var p = func() *Paginator {
 		p := New()
 		p.SetKeys("CreatedAt", "ID")
@@ -291,6 +283,8 @@ func (s *paginatorSuite) TestPaginateWithJoinQuery() {
 	s.assertOnlyAfter(cursor)
 }
 
+/* util */
+
 func (s *paginatorSuite) paginate(p *Paginator, stmt *gorm.DB, out interface{}) Cursor {
 	if err := p.Paginate(stmt, out).Error; err != nil {
 		s.FailNow(err.Error())
@@ -298,11 +292,26 @@ func (s *paginatorSuite) paginate(p *Paginator, stmt *gorm.DB, out interface{}) 
 	return p.GetNextCursor()
 }
 
+/* order */
+
 func (s *paginatorSuite) givenOrders(n int) []order {
 	orders := make([]order, n)
 	for i := 0; i < n; i++ {
 		orders[i] = order{}
 	}
+	return s.givenCustomOrders(orders)
+}
+
+func (s *paginatorSuite) givenPtrOrders(n int) []*order {
+	var result []*order
+	orders := s.givenOrders(n)
+	for i := 0; i < len(orders); i++ {
+		result = append(result, &orders[i])
+	}
+	return result
+}
+
+func (s *paginatorSuite) givenCustomOrders(orders []order) []order {
 	s.createOrders(orders)
 	return orders
 }
@@ -314,6 +323,8 @@ func (s *paginatorSuite) createOrders(orders []order) {
 		}
 	}
 }
+
+/* item */
 
 func (s *paginatorSuite) givenItems(orderID int, n int) []item {
 	items := make([]item, n)
@@ -333,6 +344,8 @@ func (s *paginatorSuite) createItems(items []item) {
 		}
 	}
 }
+
+/* assert */
 
 func (s *paginatorSuite) assertOnlyAfter(cursor Cursor) {
 	s.NotNil(cursor.After)
