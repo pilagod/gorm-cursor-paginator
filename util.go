@@ -8,6 +8,33 @@ import (
 	"time"
 )
 
+/* public */
+
+// Encode encodes properties in order defined by keys on the struct of v
+func Encode(v reflect.Value, keys []string) string {
+	fields := make([]string, len(keys))
+	for index, key := range keys {
+		if v.Kind() == reflect.Ptr {
+			fields[index] = convert(reflect.Indirect(v).FieldByName(key).Interface())
+		} else {
+			fields[index] = convert(v.FieldByName(key).Interface())
+		}
+	}
+	return encodeBase64(fields)
+}
+
+// Decode decodes cursor into values in the same order as encoding
+func Decode(cursor string) []interface{} {
+	fieldsWithType := decodeBase64(cursor)
+	fields := make([]interface{}, len(fieldsWithType))
+	for index, fieldWithType := range fieldsWithType {
+		fields[index] = revert(fieldWithType)
+	}
+	return fields
+}
+
+/* private */
+
 type fieldType string
 
 const (
