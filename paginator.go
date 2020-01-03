@@ -9,17 +9,6 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// @TODO: Define error
-
-// Order type for order
-type Order string
-
-// Orders
-const (
-	ASC  Order = "ASC"
-	DESC Order = "DESC"
-)
-
 const (
 	defaultLimit = 10
 	defaultOrder = DESC
@@ -38,12 +27,6 @@ type Paginator struct {
 	sqlKeys []string
 	limit   int
 	order   Order
-}
-
-// Cursor cursor data
-type Cursor struct {
-	After  *string `json:"after" query:"after"`
-	Before *string `json:"before" query:"before"`
 }
 
 // SetAfterCursor sets paging after cursor
