@@ -8,7 +8,5 @@ test-env-down:
 	docker-compose down -v
 
 test-coverage:
-	go test --coverprofile=c.out.tmp
-	cat c.out.tmp | grep -v "test_.*\.go" > c.out
-	rm c.out.tmp
+	go test --coverprofile=c.out
 	go tool cover -html=c.out
