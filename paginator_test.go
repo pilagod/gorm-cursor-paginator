@@ -1,11 +1,9 @@
 package paginator
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
-	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/stretchr/testify/suite"
 )
@@ -15,42 +13,7 @@ func TestPaginator(t *testing.T) {
 }
 
 type paginatorSuite struct {
-	suite.Suite
-	db *gorm.DB
-}
-
-type order struct {
-	ID        int       `gorm:"primary_key"`
-	Name      *string   `gorm:"type:varchar(30)"`
-	Items     []item    `gorm:"foreignkey:OrderID"`
-	CreatedAt time.Time `gorm:"type:timestamp;not null"`
-}
-
-type item struct {
-	ID      int   `gorm:"primary_key"`
-	OrderID int   `gorm:"type:integer;not null"`
-	Order   Order `gorm:"foreignkey:OrderID"`
-}
-
-/* suite setup */
-
-func (s *paginatorSuite) SetupSuite() {
-	db, err := gorm.Open("postgres", "host=localhost port=8765 dbname=test user=test password=test sslmode=disable")
-	if err != nil {
-		s.FailNow(err.Error())
-	}
-	s.db = db
-	s.db.AutoMigrate(&order{}, &item{})
-	s.db.Model(&item{}).AddForeignKey("order_id", "orders(id)", "CASCADE", "CASCADE")
-}
-
-func (s *paginatorSuite) TearDownTest() {
-	s.db.Exec("TRUNCATE orders, items RESTART IDENTITY;")
-}
-
-func (s *paginatorSuite) TearDownSuite() {
-	s.db.DropTable(&item{}, &order{})
-	s.db.Close()
+	baseSuite
 }
 
 /* test cases */
@@ -310,143 +273,4 @@ func (s *paginatorSuite) TestPaginateSpecialCharacter() {
 	s.Len(o3, 1)
 	s.Equal(o1, o3)
 	s.assertOnlyAfter(cursor)
-}
-
-/* util */
-
-// pq stands for paging query
-type pq struct {
-	After  *string
-	Before *string
-	Limit  *int
-	Order  *Order
-}
-
-func pqString(str string) *string {
-	return &str
-}
-
-func pqLimit(limit int) *int {
-	return &limit
-}
-
-func pqOrder(order Order) *Order {
-	return &order
-}
-
-func newPaginator(q pq) *Paginator {
-	p := New()
-	if q.After != nil {
-		p.SetAfterCursor(*q.After)
-	}
-	if q.Before != nil {
-		p.SetBeforeCursor(*q.Before)
-	}
-	if q.Limit != nil {
-		p.SetLimit(*q.Limit)
-	}
-	if q.Order != nil {
-		p.SetOrder(*q.Order)
-	}
-	return p
-}
-
-func (s *paginatorSuite) paginate(p *Paginator, stmt *gorm.DB, out interface{}) Cursor {
-	if err := p.Paginate(stmt, out).Error; err != nil {
-		s.FailNow(err.Error())
-	}
-	return p.GetNextCursor()
-}
-
-/* order */
-
-func (s *paginatorSuite) givenOrders(n int) []order {
-	orders := make([]order, n)
-	for i := 0; i < n; i++ {
-		orders[i] = order{}
-	}
-	return s.givenCustomOrders(orders)
-}
-
-func (s *paginatorSuite) givenCustomOrders(orders []order) []order {
-	s.createOrders(orders)
-	return orders
-}
-
-func (s *paginatorSuite) createOrders(orders []order) {
-	for i := 0; i < len(orders); i++ {
-		if err := s.db.Create(&orders[i]).Error; err != nil {
-			s.FailNow(err.Error())
-		}
-	}
-}
-
-func (s *paginatorSuite) givenPtrOrders(n int) []*order {
-	var result []*order
-	orders := s.givenOrders(n)
-	for i := 0; i < len(orders); i++ {
-		result = append(result, &orders[i])
-	}
-	return result
-}
-
-/* item */
-
-func (s *paginatorSuite) givenItems(orderID int, n int) []item {
-	items := make([]item, n)
-	for i := 0; i < n; i++ {
-		items[i] = item{
-			OrderID: orderID,
-		}
-	}
-	s.createItems(items)
-	return items
-}
-
-func (s *paginatorSuite) createItems(items []item) {
-	for i := 0; i < len(items); i++ {
-		if err := s.db.Create(&items[i]).Error; err != nil {
-			s.FailNow(err.Error())
-		}
-	}
-}
-
-/* assert */
-
-func (s *paginatorSuite) assertOnlyAfter(cursor Cursor) {
-	s.NotNil(cursor.After)
-	s.Nil(cursor.Before)
-}
-
-func (s *paginatorSuite) assertOnlyBefore(cursor Cursor) {
-	s.Nil(cursor.After)
-	s.NotNil(cursor.Before)
-}
-
-func (s *paginatorSuite) assertBoth(cursor Cursor) {
-	s.NotNil(cursor.After)
-	s.NotNil(cursor.Before)
-}
-
-func (s *paginatorSuite) assertOrders(expected []order, head, tail int, got []order) {
-	s.Equal(expected[head].ID, got[first(got)].ID)
-	s.Equal(expected[tail].ID, got[last(got)].ID)
-}
-
-func (s *paginatorSuite) assertPtrOrders(expected []*order, head, tail int, got []*order) {
-	s.Equal(expected[head].ID, got[first(got)].ID)
-	s.Equal(expected[tail].ID, got[last(got)].ID)
-}
-
-func (s *paginatorSuite) assertItems(expected []item, head, tail int, got []item) {
-	s.Equal(expected[head].ID, got[first(got)].ID)
-	s.Equal(expected[tail].ID, got[last(got)].ID)
-}
-
-func first(values interface{}) int {
-	return 0
-}
-
-func last(values interface{}) int {
-	return reflect.ValueOf(values).Len() - 1
 }
