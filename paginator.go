@@ -1,9 +1,13 @@
 package paginator
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/iancoleman/strcase"
 	"github.com/jinzhu/gorm"
@@ -21,12 +25,13 @@ func New() *Paginator {
 
 // Paginator a builder doing pagination
 type Paginator struct {
-	cursor  Cursor
-	next    Cursor
-	keys    []string
-	sqlKeys []string
-	limit   int
-	order   Order
+	cursor   Cursor
+	next     Cursor
+	keys     []string
+	keyKinds []kind
+	sqlKeys  []string
+	limit    int
+	order    Order
 }
 
 // SetAfterCursor sets paging after cursor
@@ -62,13 +67,30 @@ func (p *Paginator) GetNextCursor() Cursor {
 // Paginate paginates data
 func (p *Paginator) Paginate(stmt *gorm.DB, out interface{}) *gorm.DB {
 	p.initOptions()
+	p.initKeyKinds(out)
 	p.initTableKeys(stmt, out)
 	result := p.appendPagingQuery(stmt).Find(out)
 	// out must be a pointer or gorm will panic above
-	if isNonEmptySlice(out) {
+	elems := reflect.ValueOf(out).Elem()
+	if elems.Kind() == reflect.Slice && elems.Len() > 0 {
 		p.postProcess(out)
 	}
 	return result
+}
+
+// Encode encodes fields to cursor
+func (p *Paginator) Encode(v interface{}) string {
+	return base64.StdEncoding.EncodeToString(p.marshalJSON(v))
+}
+
+// Decode decodes cursor to fields
+func (p *Paginator) Decode(cursor string) []interface{} {
+	b, err := base64.StdEncoding.DecodeString(cursor)
+	// @TODO: return proper error
+	if err != nil {
+		return nil
+	}
+	return p.unmarshalJSON(b)
 }
 
 /* private */
@@ -85,6 +107,22 @@ func (p *Paginator) initOptions() {
 	}
 }
 
+func (p *Paginator) initKeyKinds(out interface{}) {
+	rt := reflect.ValueOf(out).Type()
+	for rt.Kind() == reflect.Slice || rt.Kind() == reflect.Ptr {
+		rt = rt.Elem()
+	}
+	if rt.Kind() != reflect.Struct {
+		// element of out must be struct, if not, just pass it to gorm to handle the error
+		return
+	}
+	p.keyKinds = make([]kind, len(p.keys))
+	for i, key := range p.keys {
+		field, _ := rt.FieldByName(key)
+		p.keyKinds[i] = toKind(field.Type)
+	}
+}
+
 func (p *Paginator) initTableKeys(db *gorm.DB, out interface{}) {
 	table := db.NewScope(out).TableName()
 	for _, key := range p.keys {
@@ -95,9 +133,9 @@ func (p *Paginator) initTableKeys(db *gorm.DB, out interface{}) {
 func (p *Paginator) appendPagingQuery(stmt *gorm.DB) *gorm.DB {
 	var fields []interface{}
 	if p.hasAfterCursor() {
-		fields = Decode(*p.cursor.After)
+		fields = p.Decode(*p.cursor.After)
 	} else if p.hasBeforeCursor() {
-		fields = Decode(*p.cursor.Before)
+		fields = p.Decode(*p.cursor.Before)
 	}
 	if len(fields) > 0 {
 		stmt = stmt.Where(
@@ -110,14 +148,22 @@ func (p *Paginator) appendPagingQuery(stmt *gorm.DB) *gorm.DB {
 	return stmt
 }
 
-func (p *Paginator) getCursorQuery(operator string) string {
-	queries := make([]string, len(p.sqlKeys))
+func (p *Paginator) hasAfterCursor() bool {
+	return p.cursor.After != nil
+}
+
+func (p *Paginator) hasBeforeCursor() bool {
+	return !p.hasAfterCursor() && p.cursor.Before != nil
+}
+
+func (p *Paginator) getCursorQuery(op string) string {
+	qs := make([]string, len(p.sqlKeys))
 	composite := ""
-	for index, sqlKey := range p.sqlKeys {
-		queries[index] = fmt.Sprintf("%s%s %s ?", composite, sqlKey, operator)
+	for i, sqlKey := range p.sqlKeys {
+		qs[i] = fmt.Sprintf("%s%s %s ?", composite, sqlKey, op)
 		composite = fmt.Sprintf("%s%s = ? AND ", composite, sqlKey)
 	}
-	return strings.Join(queries, " OR ")
+	return strings.Join(qs, " OR ")
 }
 
 func (p *Paginator) getCursorQueryArgs(fields []interface{}) (args []interface{}) {
@@ -157,25 +203,107 @@ func (p *Paginator) postProcess(out interface{}) {
 		elems.Set(reverse(elems))
 	}
 	if p.hasBeforeCursor() || hasMore {
-		cursor := Encode(elems.Index(elems.Len()-1), p.keys)
+		cursor := p.Encode(elems.Index(elems.Len() - 1))
 		p.next.After = &cursor
 	}
 	if p.hasAfterCursor() || (hasMore && p.hasBeforeCursor()) {
-		cursor := Encode(elems.Index(0), p.keys)
+		cursor := p.Encode(elems.Index(0))
 		p.next.Before = &cursor
 	}
 	return
 }
 
-func (p *Paginator) hasAfterCursor() bool {
-	return p.cursor.After != nil
+func (p *Paginator) marshalJSON(value interface{}) []byte {
+	rv, ok := value.(reflect.Value)
+	if !ok {
+		rv = reflect.ValueOf(value)
+	}
+	for rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	fields := make([]interface{}, len(p.keys))
+	for i, key := range p.keys {
+		fields[i] = rv.FieldByName(key).Interface()
+	}
+	// @TODO: return proper error
+	b, _ := json.Marshal(fields)
+	return b
 }
 
-func (p *Paginator) hasBeforeCursor() bool {
-	return !p.hasAfterCursor() && p.cursor.Before != nil
+func (p *Paginator) unmarshalJSON(bytes []byte) []interface{} {
+	var fields []interface{}
+	err := json.Unmarshal(bytes, &fields)
+	// @TODO: return proper error
+	if err != nil {
+		return nil
+	}
+	return p.castJSONFields(fields)
 }
 
-func isNonEmptySlice(ptr interface{}) bool {
-	elems := reflect.ValueOf(ptr).Elem()
-	return elems.Type().Kind() == reflect.Slice && elems.Len() > 0
+func (p *Paginator) castJSONFields(fields []interface{}) []interface{} {
+	result := make([]interface{}, len(fields))
+	for i, field := range fields {
+		kind := p.keyKinds[i]
+		switch f := field.(type) {
+		case bool:
+			bv, err := castJSONBool(f, kind)
+			if err != nil {
+				return nil
+			}
+			result[i] = bv
+		case float64:
+			fv, err := castJSONFloat(f, kind)
+			if err != nil {
+				return nil
+			}
+			result[i] = fv
+		case string:
+			sv, err := castJSONString(f, kind)
+			if err != nil {
+				return nil
+			}
+			result[i] = sv
+		default:
+			// invalid field
+			return nil
+		}
+	}
+	return result
+}
+
+var (
+	errInvalidFieldType = errors.New("invalid field type")
+)
+
+func castJSONBool(value bool, kind kind) (interface{}, error) {
+	if kind != kindBool {
+		return nil, errInvalidFieldType
+	}
+	return value, nil
+}
+
+func castJSONFloat(value float64, kind kind) (interface{}, error) {
+	switch kind {
+	case kindInt:
+		return int(value), nil
+	case kindUint:
+		return uint(value), nil
+	case kindFloat:
+		return value, nil
+	}
+	return nil, errInvalidFieldType
+}
+
+func castJSONString(value string, kind kind) (interface{}, error) {
+	if kind != kindString && kind != kindTime {
+		return nil, errInvalidFieldType
+	}
+	if kind == kindString {
+		return value, nil
+	}
+	tv, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return nil, errInvalidFieldType
+	}
+	return tv, nil
 }

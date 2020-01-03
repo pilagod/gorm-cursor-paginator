@@ -21,6 +21,7 @@ type paginatorSuite struct {
 
 type order struct {
 	ID        int       `gorm:"primary_key"`
+	Name      *string   `gorm:"type:varchar(30)"`
 	Items     []item    `gorm:"foreignkey:OrderID"`
 	CreatedAt time.Time `gorm:"type:timestamp;not null"`
 }
@@ -279,6 +280,38 @@ func (s *paginatorSuite) TestPaginateJoinQuery() {
 	s.assertOnlyAfter(cursor)
 }
 
+func (s *paginatorSuite) TestPaginateSpecialCharacter() {
+	var p = func(q pq) *Paginator {
+		p := newPaginator(q)
+		p.SetKeys("Name")
+		return p
+	}
+	s.givenCustomOrders([]order{
+		{Name: pqString("a,b,c")},
+		{Name: pqString("a:b:c")},
+		{Name: pqString("a%b%c")},
+	})
+
+	var o1 []order
+	p1 := p(pq{Limit: pqLimit(1)})
+	cursor := s.paginate(p1, s.db, &o1)
+	s.Len(o1, 1)
+	s.assertOnlyAfter(cursor)
+
+	var o2 []order
+	p2 := p(pq{After: cursor.After})
+	cursor = s.paginate(p2, s.db, &o2)
+	s.Len(o2, 2)
+	s.assertOnlyBefore(cursor)
+
+	var o3 []order
+	p3 := p(pq{Before: cursor.Before})
+	cursor = s.paginate(p3, s.db, &o3)
+	s.Len(o3, 1)
+	s.Equal(o1, o3)
+	s.assertOnlyAfter(cursor)
+}
+
 /* util */
 
 // pq stands for paging query
@@ -287,6 +320,10 @@ type pq struct {
 	Before *string
 	Limit  *int
 	Order  *Order
+}
+
+func pqString(str string) *string {
+	return &str
 }
 
 func pqLimit(limit int) *int {
