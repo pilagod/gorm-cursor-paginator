@@ -9,6 +9,8 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+// @TODO: Define error
+
 // Order type for order
 type Order string
 
@@ -77,10 +79,10 @@ func (p *Paginator) GetNextCursor() Cursor {
 // Paginate paginates data
 func (p *Paginator) Paginate(stmt *gorm.DB, out interface{}) *gorm.DB {
 	p.initOptions()
-	p.initModelInfo(stmt, out)
+	p.initTableKeys(stmt, out)
 	result := p.appendPagingQuery(stmt).Find(out)
 	// out must be a pointer or gorm will panic above
-	if reflect.ValueOf(out).Elem().Type().Kind() == reflect.Slice && reflect.ValueOf(out).Elem().Len() > 0 {
+	if isNonEmptySlice(out) {
 		p.postProcess(out)
 	}
 	return result
@@ -100,7 +102,7 @@ func (p *Paginator) initOptions() {
 	}
 }
 
-func (p *Paginator) initModelInfo(db *gorm.DB, out interface{}) {
+func (p *Paginator) initTableKeys(db *gorm.DB, out interface{}) {
 	table := db.NewScope(out).TableName()
 	for _, key := range p.keys {
 		p.sqlKeys = append(p.sqlKeys, fmt.Sprintf("%s.%s", table, strcase.ToSnake(key)))
@@ -188,4 +190,9 @@ func (p *Paginator) hasAfterCursor() bool {
 
 func (p *Paginator) hasBeforeCursor() bool {
 	return !p.hasAfterCursor() && p.cursor.Before != nil
+}
+
+func isNonEmptySlice(ptr interface{}) bool {
+	elems := reflect.ValueOf(ptr).Elem()
+	return elems.Type().Kind() == reflect.Slice && elems.Len() > 0
 }

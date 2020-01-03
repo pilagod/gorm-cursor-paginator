@@ -25,6 +25,7 @@ func Encode(v reflect.Value, keys []string) string {
 
 // Decode decodes cursor into values in the same order as encoding
 func Decode(cursor string) []interface{} {
+	// @TODO: backward-compatibility
 	fieldsWithType := decodeBase64(cursor)
 	fields := make([]interface{}, len(fieldsWithType))
 	for index, fieldWithType := range fieldsWithType {
