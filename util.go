@@ -73,13 +73,6 @@ func parseFieldWithType(fieldWithType string) (string, fieldType) {
 	return field, fieldType
 }
 
-func flip(order Order) Order {
-	if order == ASC {
-		return DESC
-	}
-	return ASC
-}
-
 func reverse(v reflect.Value) reflect.Value {
 	result := reflect.MakeSlice(v.Type(), 0, v.Cap())
 	for i := v.Len() - 1; i >= 0; i-- {
