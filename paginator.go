@@ -9,15 +9,6 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// Order type for order
-type Order string
-
-// Orders
-const (
-	ASC  Order = "ASC"
-	DESC Order = "DESC"
-)
-
 const (
 	defaultLimit = 10
 	defaultOrder = DESC
@@ -30,18 +21,12 @@ func New() *Paginator {
 
 // Paginator a builder doing pagination
 type Paginator struct {
-	cursor  Cursor
-	next    Cursor
-	keys    []string
-	sqlKeys []string
-	limit   int
-	order   Order
-}
-
-// Cursor cursor data
-type Cursor struct {
-	After  *string `json:"after" query:"after"`
-	Before *string `json:"before" query:"before"`
+	cursor    Cursor
+	next      Cursor
+	keys      []string
+	tableKeys []string
+	limit     int
+	order     Order
 }
 
 // SetAfterCursor sets paging after cursor
@@ -77,10 +62,11 @@ func (p *Paginator) GetNextCursor() Cursor {
 // Paginate paginates data
 func (p *Paginator) Paginate(stmt *gorm.DB, out interface{}) *gorm.DB {
 	p.initOptions()
-	p.initModelInfo(stmt, out)
-	result := p.appendPagingQuery(stmt).Find(out)
+	p.initTableKeys(stmt, out)
+	result := p.appendPagingQuery(stmt, out).Find(out)
 	// out must be a pointer or gorm will panic above
-	if reflect.ValueOf(out).Elem().Type().Kind() == reflect.Slice && reflect.ValueOf(out).Elem().Len() > 0 {
+	elems := reflect.ValueOf(out).Elem()
+	if elems.Kind() == reflect.Slice && elems.Len() > 0 {
 		p.postProcess(out)
 	}
 	return result
@@ -100,23 +86,24 @@ func (p *Paginator) initOptions() {
 	}
 }
 
-func (p *Paginator) initModelInfo(db *gorm.DB, out interface{}) {
+func (p *Paginator) initTableKeys(db *gorm.DB, out interface{}) {
 	table := db.NewScope(out).TableName()
 	for _, key := range p.keys {
-		p.sqlKeys = append(p.sqlKeys, fmt.Sprintf("%s.%s", table, strcase.ToSnake(key)))
+		p.tableKeys = append(p.tableKeys, fmt.Sprintf("%s.%s", table, strcase.ToSnake(key)))
 	}
 }
 
-func (p *Paginator) appendPagingQuery(stmt *gorm.DB) *gorm.DB {
+func (p *Paginator) appendPagingQuery(stmt *gorm.DB, out interface{}) *gorm.DB {
+	decoder, _ := NewCursorDecoder(out, p.keys...)
 	var fields []interface{}
 	if p.hasAfterCursor() {
-		fields = Decode(*p.cursor.After)
+		fields = decoder.Decode(*p.cursor.After)
 	} else if p.hasBeforeCursor() {
-		fields = Decode(*p.cursor.Before)
+		fields = decoder.Decode(*p.cursor.Before)
 	}
 	if len(fields) > 0 {
 		stmt = stmt.Where(
-			p.getCursorQuery(p.getOperator()),
+			p.getCursorQuery(),
 			p.getCursorQueryArgs(fields)...,
 		)
 	}
@@ -125,14 +112,23 @@ func (p *Paginator) appendPagingQuery(stmt *gorm.DB) *gorm.DB {
 	return stmt
 }
 
-func (p *Paginator) getCursorQuery(operator string) string {
-	queries := make([]string, len(p.sqlKeys))
+func (p *Paginator) hasAfterCursor() bool {
+	return p.cursor.After != nil
+}
+
+func (p *Paginator) hasBeforeCursor() bool {
+	return !p.hasAfterCursor() && p.cursor.Before != nil
+}
+
+func (p *Paginator) getCursorQuery() string {
+	qs := make([]string, len(p.tableKeys))
+	op := p.getOperator()
 	composite := ""
-	for index, sqlKey := range p.sqlKeys {
-		queries[index] = fmt.Sprintf("%s%s %s ?", composite, sqlKey, operator)
+	for i, sqlKey := range p.tableKeys {
+		qs[i] = fmt.Sprintf("%s%s %s ?", composite, sqlKey, op)
 		composite = fmt.Sprintf("%s%s = ? AND ", composite, sqlKey)
 	}
-	return strings.Join(queries, " OR ")
+	return strings.Join(qs, " OR ")
 }
 
 func (p *Paginator) getCursorQueryArgs(fields []interface{}) (args []interface{}) {
@@ -155,8 +151,8 @@ func (p *Paginator) getOrder() string {
 	if p.hasBeforeCursor() {
 		order = flip(p.order)
 	}
-	orders := make([]string, len(p.sqlKeys))
-	for index, sqlKey := range p.sqlKeys {
+	orders := make([]string, len(p.tableKeys))
+	for index, sqlKey := range p.tableKeys {
 		orders[index] = fmt.Sprintf("%s %s", sqlKey, order)
 	}
 	return strings.Join(orders, ", ")
@@ -171,21 +167,22 @@ func (p *Paginator) postProcess(out interface{}) {
 	if p.hasBeforeCursor() {
 		elems.Set(reverse(elems))
 	}
+	encoder := NewCursorEncoder(p.keys...)
 	if p.hasBeforeCursor() || hasMore {
-		cursor := Encode(elems.Index(elems.Len()-1), p.keys)
+		cursor := encoder.Encode(elems.Index(elems.Len() - 1))
 		p.next.After = &cursor
 	}
 	if p.hasAfterCursor() || (hasMore && p.hasBeforeCursor()) {
-		cursor := Encode(elems.Index(0), p.keys)
+		cursor := encoder.Encode(elems.Index(0))
 		p.next.Before = &cursor
 	}
 	return
 }
 
-func (p *Paginator) hasAfterCursor() bool {
-	return p.cursor.After != nil
-}
-
-func (p *Paginator) hasBeforeCursor() bool {
-	return !p.hasAfterCursor() && p.cursor.Before != nil
+func reverse(v reflect.Value) reflect.Value {
+	result := reflect.MakeSlice(v.Type(), 0, v.Cap())
+	for i := v.Len() - 1; i >= 0; i-- {
+		result = reflect.Append(result, v.Index(i))
+	}
+	return result
 }
