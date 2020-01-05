@@ -31,7 +31,7 @@ func Decode(cursor string) []interface{} {
 	if err != nil {
 		return decodeOld(b)
 	}
-	// ensure foward compatibility
+	// ensure forward compatibility
 	for i, field := range fields {
 		value := fmt.Sprintf("%v", field)
 		if rfc3339.Match([]byte(value)) {

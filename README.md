@@ -21,7 +21,8 @@ Assume there is an query struct for paging:
 
 ```go
 type PagingQuery struct {
-    Cursor paginator.Cursor
+    After  *string
+    Before *string
     Limit  *int
     Order  *string
 }
@@ -46,14 +47,14 @@ import (
 func GetModelPaginator(q PagingQuery) *paginator.Paginator {
     p := paginator.New()
 
-    p.SetKeys("CreatedAt", "ID") // [default: "ID"] (supports multiple keys, and order of keys matters)
+    p.SetKeys("CreatedAt", "ID") // [default: "ID"] (supporting multiple keys, order of keys matters)
 
-    if q.Cursor.After != nil {
-        p.SetAfterCursor(*q.Cursor.After) // [default: nil]
+    if q.After != nil {
+        p.SetAfterCursor(*q.After) // [default: nil]
     }
 
-    if q.Cursor.Before != nil {
-        p.SetBeforeCursor(*q.Cursor.Before) // [default: nil]
+    if q.Before != nil {
+        p.SetBeforeCursor(*q.Before) // [default: nil]
     }
 
     if q.Limit != nil {
