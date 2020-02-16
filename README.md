@@ -17,6 +17,8 @@ go get -u github.com/pilagod/gorm-cursor-paginator
 Usage by Example
 ----------------
 
+> For more comprehensive examples, you can check [example/main.go](https://github.com/pilagod/gorm-cursor-paginator/blob/master/example/main.go) and [paginator_test.go](https://github.com/pilagod/gorm-cursor-paginator/blob/master/paginator_test.go)
+
 Assume there is an query struct for paging:
 
 ```go
