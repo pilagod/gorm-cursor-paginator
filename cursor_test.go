@@ -142,12 +142,17 @@ func (s *cursorSuite) TestCursorDeprecatedDecodeBackwardCompatibility() {
 /* cursor test model */
 
 type cursorModel struct {
-	Bool   bool
-	Int    int
-	Uint   uint
-	Float  float64
-	String string
-	Time   time.Time
+	Bool     bool
+	Int      int
+	Uint     uint
+	Float    float64
+	String   string
+	Time     time.Time
+	Embedded embeddedModel
+}
+
+type embeddedModel struct {
+	Bytes []byte
 }
 
 func createCursorModelFixture() cursorModel {
@@ -158,6 +163,9 @@ func createCursorModelFixture() cursorModel {
 		Float:  3.14,
 		String: "hello",
 		Time:   time.Now(),
+		Embedded: embeddedModel{
+			Bytes: []byte{'t', 'e', 's', 't'},
+		},
 	}
 }
 
@@ -166,7 +174,7 @@ func (m *cursorModel) FieldCount() int {
 }
 
 func (m *cursorModel) Keys() []string {
-	return []string{"Bool", "Int", "Uint", "Float", "String", "Time"}
+	return []string{"Bool", "Int", "Uint", "Float", "String", "Time", "Embedded"}
 }
 
 func (m *cursorModel) Encode() string {
@@ -241,6 +249,10 @@ func (s *cursorSuite) assertFields(model cursorModel, fields []interface{}) {
 
 	timeVal, _ := fields[5].(time.Time)
 	s.assertTime(model.Time, timeVal)
+
+	embeddedVal, ok := fields[4].(embeddedModel)
+	s.True(ok)
+	s.Equal(model.Embedded.Bytes, embeddedVal.Bytes)
 }
 
 func (s *cursorSuite) assertDeprecatedFields(model cursorModel, fields []interface{}) {
