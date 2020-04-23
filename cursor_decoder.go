@@ -37,7 +37,7 @@ func NewCursorDecoder(ref interface{}, keys ...string) (CursorDecoder, error) {
 var (
 	ErrInvalidDecodeReference = errors.New("decode reference should be struct")
 	ErrInvalidField           = errors.New("invalid field")
-	errInvalidOldField        = errors.New("invalid old field")
+	ErrInvalidOldField        = errors.New("invalid old field")
 )
 
 type cursorDecoder struct {
@@ -51,6 +51,12 @@ func (d *cursorDecoder) Decode(cursor string) []interface{} {
 	// @TODO: return proper error
 	if err != nil {
 		return nil
+	}
+
+	// If it is not valid JSON, we should attempt to use the old decoding
+	// technique for backwards compatability.
+	if !json.Valid(b) {
+		return decodeOld(b)
 	}
 
 	// Create a JSON decoder
@@ -85,9 +91,8 @@ func (d *cursorDecoder) Decode(cursor string) []interface{} {
 		v := reflect.New(objType).Interface()
 
 		// Decode the value
-		err := dec.Decode(&v)
-		if err != nil {
-			return decodeOld(b)
+		if err := dec.Decode(&v); err != nil {
+			return nil
 		}
 
 		// Need to dereference since everything is now a pointer
@@ -145,7 +150,7 @@ func revert(fieldWithType string) (interface{}, error) {
 func parse(fieldWithType string) (string, fieldType, error) {
 	sep := strings.LastIndex(fieldWithType, "?")
 	if sep == -1 {
-		return "", fieldString, errInvalidOldField
+		return "", fieldString, ErrInvalidOldField
 	}
 
 	field := fieldWithType[:sep]
