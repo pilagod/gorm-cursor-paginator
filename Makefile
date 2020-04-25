@@ -1,6 +1,12 @@
 test:
 	go test -v
 
+test-cursor:
+	go test -v -run TestCursor
+
+test-paginator:
+	go test -v -run TestPaginator
+
 test-env-up:
 	docker-compose up -d
 
