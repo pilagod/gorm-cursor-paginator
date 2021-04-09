@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/stretchr/testify/suite"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 func TestPaginator(t *testing.T) {
@@ -17,16 +17,16 @@ func TestPaginator(t *testing.T) {
 /* test model */
 
 type order struct {
-	ID        int       `gorm:"primary_key"`
+	ID        int       `gorm:"primaryKey"`
 	Name      *string   `gorm:"type:varchar(30)"`
-	Items     []item    `gorm:"foreignkey:OrderID"`
+	Items     []item    `gorm:"foreignKey:OrderID"`
 	CreatedAt time.Time `gorm:"type:timestamp;not null"`
 }
 
 type item struct {
-	ID      int   `gorm:"primary_key"`
+	ID      int   `gorm:"primaryKey"`
 	OrderID int   `gorm:"type:integer;not null"`
-	Order   Order `gorm:"foreignkey:OrderID"`
+	Order   Order `gorm:"foreignKey:OrderID"`
 }
 
 /* suite */
@@ -39,13 +39,15 @@ type paginatorSuite struct {
 /* suite setup */
 
 func (s *paginatorSuite) SetupSuite() {
-	db, err := gorm.Open("postgres", "host=localhost port=8765 dbname=test user=test password=test sslmode=disable")
+	db, err := gorm.Open(
+		postgres.Open("host=localhost port=8765 dbname=test user=test password=test sslmode=disable"),
+		&gorm.Config{},
+	)
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 	s.db = db
 	s.db.AutoMigrate(&order{}, &item{})
-	s.db.Model(&item{}).AddForeignKey("order_id", "orders(id)", "CASCADE", "CASCADE")
 }
 
 func (s *paginatorSuite) TearDownTest() {
@@ -53,8 +55,7 @@ func (s *paginatorSuite) TearDownTest() {
 }
 
 func (s *paginatorSuite) TearDownSuite() {
-	s.db.DropTable(&item{}, &order{})
-	s.db.Close()
+	s.db.Migrator().DropTable(&item{}, &order{})
 }
 
 /* suite test cases */
