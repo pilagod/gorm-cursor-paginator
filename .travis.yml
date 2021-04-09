@@ -1,7 +1,8 @@
 language: go
 
 go:
-  - "1.12"
+  - "1.14"
+  - "1.15"
 
 env:
   - GO111MODULE=on
