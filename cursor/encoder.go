@@ -10,19 +10,19 @@ import (
 )
 
 // NewEncoder creates cursor encoder
-func NewEncoder(keys ...string) *CursorEncoder {
-	return &CursorEncoder{keys}
+func NewEncoder(keys ...string) *Encoder {
+	return &Encoder{keys}
 }
 
-type CursorEncoder struct {
+type Encoder struct {
 	keys []string
 }
 
-func (e *CursorEncoder) Encode(v interface{}) string {
+func (e *Encoder) Encode(v interface{}) string {
 	return base64.StdEncoding.EncodeToString(e.marshalJSON(v))
 }
 
-func (e *CursorEncoder) marshalJSON(value interface{}) []byte {
+func (e *Encoder) marshalJSON(value interface{}) []byte {
 	rv := toReflectValue(value)
 	// reduce reflect value to underlying value
 	for rv.Kind() == reflect.Ptr {

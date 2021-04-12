@@ -185,7 +185,7 @@ func (m *cursorModel) Encode() string {
 	return m.Encoder().Encode(m)
 }
 
-func (m *cursorModel) Encoder() *CursorEncoder {
+func (m *cursorModel) Encoder() *Encoder {
 	return NewEncoder(m.Keys()...)
 }
 
@@ -227,7 +227,7 @@ func (m *cursorModel) Decode(cursor string) ([]interface{}, error) {
 	return decoder.Decode(cursor), nil
 }
 
-func (m *cursorModel) Decoder() (*CursorDecoder, error) {
+func (m *cursorModel) Decoder() (*Decoder, error) {
 	return NewDecoder(m, m.Keys()...)
 }
 

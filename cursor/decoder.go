@@ -17,7 +17,7 @@ var (
 )
 
 // NewDecoder creates cursor decoder
-func NewDecoder(ref interface{}, keys ...string) (*CursorDecoder, error) {
+func NewDecoder(ref interface{}, keys ...string) (*Decoder, error) {
 	// Get the reflected type
 	rt := toReflectValue(ref).Type()
 
@@ -31,15 +31,15 @@ func NewDecoder(ref interface{}, keys ...string) (*CursorDecoder, error) {
 		return nil, ErrInvalidDecodeReference
 	}
 
-	return &CursorDecoder{ref: rt, keys: keys}, nil
+	return &Decoder{ref: rt, keys: keys}, nil
 }
 
-type CursorDecoder struct {
+type Decoder struct {
 	ref  reflect.Type // reflected type of reference object
 	keys []string
 }
 
-func (d *CursorDecoder) Decode(cursor string) []interface{} {
+func (d *Decoder) Decode(cursor string) []interface{} {
 	b, err := base64.StdEncoding.DecodeString(cursor)
 	// @TODO: return proper error
 	if err != nil {
