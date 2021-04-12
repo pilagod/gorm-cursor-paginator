@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/iancoleman/strcase"
+	"github.com/pilagod/gorm-cursor-paginator/cursor"
 	"gorm.io/gorm"
 )
 
@@ -22,8 +23,8 @@ func New() *Paginator {
 
 // Paginator a builder doing pagination
 type Paginator struct {
-	cursor    Cursor
-	next      Cursor
+	cursor    cursor.Cursor
+	next      cursor.Cursor
 	keys      []string
 	tableKeys []string
 	limit     int
@@ -56,7 +57,7 @@ func (p *Paginator) SetOrder(order Order) {
 }
 
 // GetNextCursor returns cursor for next pagination
-func (p *Paginator) GetNextCursor() Cursor {
+func (p *Paginator) GetNextCursor() cursor.Cursor {
 	return p.next
 }
 
@@ -95,7 +96,7 @@ func (p *Paginator) init(db *gorm.DB, out interface{}) {
 }
 
 func (p *Paginator) appendPagingQuery(stmt *gorm.DB, out interface{}) *gorm.DB {
-	decoder, _ := NewCursorDecoder(out, p.keys...)
+	decoder, _ := cursor.NewCursorDecoder(out, p.keys...)
 	var fields []interface{}
 	if p.hasAfterCursor() {
 		fields = decoder.Decode(*p.cursor.After)
@@ -168,7 +169,7 @@ func (p *Paginator) postProcess(out interface{}) {
 	if p.hasBeforeCursor() {
 		elems.Set(reverse(elems))
 	}
-	encoder := NewCursorEncoder(p.keys...)
+	encoder := cursor.NewCursorEncoder(p.keys...)
 	if p.hasBeforeCursor() || hasMore {
 		cursor := encoder.Encode(elems.Index(elems.Len() - 1))
 		p.next.After = &cursor

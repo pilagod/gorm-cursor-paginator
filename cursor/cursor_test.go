@@ -1,4 +1,4 @@
-package paginator
+package cursor
 
 import (
 	"encoding/base64"
