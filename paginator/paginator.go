@@ -96,7 +96,7 @@ func (p *Paginator) init(db *gorm.DB, out interface{}) {
 }
 
 func (p *Paginator) appendPagingQuery(stmt *gorm.DB, out interface{}) *gorm.DB {
-	decoder, _ := cursor.NewCursorDecoder(out, p.keys...)
+	decoder, _ := cursor.NewDecoder(out, p.keys...)
 	var fields []interface{}
 	if p.hasAfterCursor() {
 		fields = decoder.Decode(*p.cursor.After)
@@ -169,7 +169,7 @@ func (p *Paginator) postProcess(out interface{}) {
 	if p.hasBeforeCursor() {
 		elems.Set(reverse(elems))
 	}
-	encoder := cursor.NewCursorEncoder(p.keys...)
+	encoder := cursor.NewEncoder(p.keys...)
 	if p.hasBeforeCursor() || hasMore {
 		cursor := encoder.Encode(elems.Index(elems.Len() - 1))
 		p.next.After = &cursor
