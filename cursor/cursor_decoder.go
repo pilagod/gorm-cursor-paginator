@@ -1,4 +1,4 @@
-package paginator
+package cursor
 
 import (
 	"bytes"
@@ -10,13 +10,14 @@ import (
 	"time"
 )
 
-// CursorDecoder decoder for cursor
-type CursorDecoder interface {
-	Decode(cursor string) []interface{}
-}
+var (
+	ErrInvalidDecodeReference = errors.New("decode reference should be struct")
+	ErrInvalidField           = errors.New("invalid field")
+	ErrInvalidOldField        = errors.New("invalid old field")
+)
 
-// NewCursorDecoder creates cursor decoder
-func NewCursorDecoder(ref interface{}, keys ...string) (CursorDecoder, error) {
+// NewDecoder creates cursor decoder
+func NewDecoder(ref interface{}, keys ...string) (*CursorDecoder, error) {
 	// Get the reflected type
 	rt := toReflectValue(ref).Type()
 
@@ -30,23 +31,15 @@ func NewCursorDecoder(ref interface{}, keys ...string) (CursorDecoder, error) {
 		return nil, ErrInvalidDecodeReference
 	}
 
-	return &cursorDecoder{ref: rt, keys: keys}, nil
+	return &CursorDecoder{ref: rt, keys: keys}, nil
 }
 
-// Errors for decoders
-var (
-	ErrInvalidDecodeReference = errors.New("decode reference should be struct")
-	ErrInvalidField           = errors.New("invalid field")
-	ErrInvalidOldField        = errors.New("invalid old field")
-)
-
-type cursorDecoder struct {
-	// ref is the reference objects reflected type
-	ref  reflect.Type
+type CursorDecoder struct {
+	ref  reflect.Type // reflected type of reference object
 	keys []string
 }
 
-func (d *cursorDecoder) Decode(cursor string) []interface{} {
+func (d *CursorDecoder) Decode(cursor string) []interface{} {
 	b, err := base64.StdEncoding.DecodeString(cursor)
 	// @TODO: return proper error
 	if err != nil {

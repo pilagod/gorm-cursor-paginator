@@ -1,4 +1,4 @@
-package paginator
+package cursor
 
 import (
 	"encoding/base64"
@@ -9,25 +9,20 @@ import (
 	"time"
 )
 
-// CursorEncoder encoder for cursor
-type CursorEncoder interface {
-	Encode(v interface{}) string
+// NewEncoder creates cursor encoder
+func NewEncoder(keys ...string) *CursorEncoder {
+	return &CursorEncoder{keys}
 }
 
-// NewCursorEncoder creates cursor encoder
-func NewCursorEncoder(keys ...string) CursorEncoder {
-	return &cursorEncoder{keys}
-}
-
-type cursorEncoder struct {
+type CursorEncoder struct {
 	keys []string
 }
 
-func (e *cursorEncoder) Encode(v interface{}) string {
+func (e *CursorEncoder) Encode(v interface{}) string {
 	return base64.StdEncoding.EncodeToString(e.marshalJSON(v))
 }
 
-func (e *cursorEncoder) marshalJSON(value interface{}) []byte {
+func (e *CursorEncoder) marshalJSON(value interface{}) []byte {
 	rv := toReflectValue(value)
 	// reduce reflect value to underlying value
 	for rv.Kind() == reflect.Ptr {

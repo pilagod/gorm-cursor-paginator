@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pilagod/gorm-cursor-paginator/cursor"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -326,7 +327,7 @@ func (s *paginatorSuite) TestPaginateSpecialCharacter() {
 
 /* util */
 
-func (s *paginatorSuite) paginate(stmt *gorm.DB, out interface{}, q pq) Cursor {
+func (s *paginatorSuite) paginate(stmt *gorm.DB, out interface{}, q pq) cursor.Cursor {
 	p := q.Paginator()
 	if err := p.Paginate(stmt, out).Error; err != nil {
 		s.FailNow(err.Error())
@@ -430,17 +431,17 @@ func (s *paginatorSuite) createItems(items []item) []item {
 
 /* assert */
 
-func (s *paginatorSuite) assertOnlyAfter(cursor Cursor) {
+func (s *paginatorSuite) assertOnlyAfter(cursor cursor.Cursor) {
 	s.NotNil(cursor.After)
 	s.Nil(cursor.Before)
 }
 
-func (s *paginatorSuite) assertOnlyBefore(cursor Cursor) {
+func (s *paginatorSuite) assertOnlyBefore(cursor cursor.Cursor) {
 	s.Nil(cursor.After)
 	s.NotNil(cursor.Before)
 }
 
-func (s *paginatorSuite) assertBoth(cursor Cursor) {
+func (s *paginatorSuite) assertBoth(cursor cursor.Cursor) {
 	s.NotNil(cursor.After)
 	s.NotNil(cursor.Before)
 }

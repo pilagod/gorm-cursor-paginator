@@ -1,4 +1,4 @@
-package paginator
+package cursor
 
 import (
 	"encoding/base64"
@@ -44,7 +44,7 @@ func (s *cursorSuite) TestCursorEncoderBackwardCompatibility() {
 
 func (s *cursorSuite) TestCursorDecoderShouldReturnErrorWhenRefIsNotStruct() {
 	var nonStructRef int
-	_, err := NewCursorDecoder(nonStructRef, "Key")
+	_, err := NewDecoder(nonStructRef, "Key")
 	s.Equal(ErrInvalidDecodeReference, err)
 }
 
@@ -185,8 +185,8 @@ func (m *cursorModel) Encode() string {
 	return m.Encoder().Encode(m)
 }
 
-func (m *cursorModel) Encoder() CursorEncoder {
-	return NewCursorEncoder(m.Keys()...)
+func (m *cursorModel) Encoder() *CursorEncoder {
+	return NewEncoder(m.Keys()...)
 }
 
 func (m *cursorModel) EncodeReplace(key string, value interface{}) string {
@@ -227,8 +227,8 @@ func (m *cursorModel) Decode(cursor string) ([]interface{}, error) {
 	return decoder.Decode(cursor), nil
 }
 
-func (m *cursorModel) Decoder() (CursorDecoder, error) {
-	return NewCursorDecoder(m, m.Keys()...)
+func (m *cursorModel) Decoder() (*CursorDecoder, error) {
+	return NewDecoder(m, m.Keys()...)
 }
 
 /* util */

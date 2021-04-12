@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	paginator "github.com/pilagod/gorm-cursor-paginator"
+	"github.com/pilagod/gorm-cursor-paginator/paginator"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )

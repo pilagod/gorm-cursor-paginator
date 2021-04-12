@@ -1,4 +1,4 @@
-package paginator
+package cursor
 
 import (
 	"encoding/base64"
@@ -16,7 +16,7 @@ var (
 // Encode encodes properties in order defined by keys on the struct of v
 // Deprecated: Encode will remove in v2, use CursorEncoder instead
 func Encode(v reflect.Value, keys []string) string {
-	return NewCursorEncoder(keys...).Encode(v)
+	return NewEncoder(keys...).Encode(v)
 }
 
 // Decode decodes cursor into values in the same order as encoding
