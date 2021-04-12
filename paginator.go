@@ -1,12 +1,13 @@
 package paginator
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
 
 	"github.com/iancoleman/strcase"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 )
 
 const (
@@ -61,9 +62,9 @@ func (p *Paginator) GetNextCursor() Cursor {
 
 // Paginate paginates data
 func (p *Paginator) Paginate(stmt *gorm.DB, out interface{}) *gorm.DB {
-	p.initOptions()
-	p.initTableKeys(stmt, out)
-	result := p.appendPagingQuery(stmt, out).Find(out)
+	ctxStmt := stmt.WithContext(context.Background())
+	p.init(ctxStmt, out)
+	result := p.appendPagingQuery(ctxStmt, out).Find(out)
 	// out must be a pointer or gorm will panic above
 	elems := reflect.ValueOf(out).Elem()
 	if elems.Kind() == reflect.Slice && elems.Len() > 0 {
@@ -74,7 +75,7 @@ func (p *Paginator) Paginate(stmt *gorm.DB, out interface{}) *gorm.DB {
 
 /* private */
 
-func (p *Paginator) initOptions() {
+func (p *Paginator) init(db *gorm.DB, out interface{}) {
 	if len(p.keys) == 0 {
 		p.keys = append(p.keys, "ID")
 	}
@@ -84,10 +85,10 @@ func (p *Paginator) initOptions() {
 	if p.order == "" {
 		p.order = defaultOrder
 	}
-}
-
-func (p *Paginator) initTableKeys(db *gorm.DB, out interface{}) {
-	table := db.NewScope(out).TableName()
+	// https://stackoverflow.com/questions/51999441/how-to-get-a-table-name-from-a-model-in-gorm
+	stmt := &gorm.Statement{DB: db}
+	stmt.Parse(out)
+	table := stmt.Schema.Table
 	for _, key := range p.keys {
 		p.tableKeys = append(p.tableKeys, fmt.Sprintf("%s.%s", table, strcase.ToSnake(key)))
 	}
