@@ -3,7 +3,11 @@ package cursor
 import (
 	"encoding/base64"
 	"encoding/json"
-	"reflect"
+	"errors"
+)
+
+var (
+	ErrEncodeInvalidModel = errors.New("invalid model for encoding")
 )
 
 // NewEncoder creates cursor encoder
@@ -15,25 +19,27 @@ type Encoder struct {
 	keys []string
 }
 
-func (e *Encoder) Encode(v interface{}) (string, error) {
-	b, err := e.marshalJSON(v)
+func (e *Encoder) Encode(model interface{}) (string, error) {
+	b, err := e.marshalJSON(model)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(b), nil
 }
 
-func (e *Encoder) marshalJSON(value interface{}) ([]byte, error) {
-	rv := reflectValue(value)
-	fields := make([]interface{}, len(e.keys))
+func (e *Encoder) marshalJSON(model interface{}) ([]byte, error) {
+	rv := reflectValue(model)
+	fs := make([]interface{}, len(e.keys))
 	for i, key := range e.keys {
-		v := rv.FieldByName(key)
-		// TODO: check is zero
-		for v.Kind() == reflect.Ptr {
-			v = v.Elem()
+		v := reflectValue(rv.FieldByName(key))
+		if !v.IsValid() {
+			return nil, ErrEncodeInvalidModel
 		}
-		fields[i] = v.Interface()
+		fs[i] = v.Interface()
 	}
-	// @TODO: return proper error
-	return json.Marshal(fields)
+	result, err := json.Marshal(fs)
+	if err != nil {
+		return nil, ErrEncodeInvalidModel
+	}
+	return result, nil
 }
