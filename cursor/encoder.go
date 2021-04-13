@@ -3,10 +3,7 @@ package cursor
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"reflect"
-	"strings"
-	"time"
 )
 
 // NewEncoder creates cursor encoder
@@ -18,44 +15,25 @@ type Encoder struct {
 	keys []string
 }
 
-func (e *Encoder) Encode(v interface{}) string {
-	return base64.StdEncoding.EncodeToString(e.marshalJSON(v))
+func (e *Encoder) Encode(v interface{}) (string, error) {
+	b, err := e.marshalJSON(v)
+	if err != nil {
+		return "", nil
+	}
+	return base64.StdEncoding.EncodeToString(b), nil
 }
 
-func (e *Encoder) marshalJSON(value interface{}) []byte {
-	rv := toReflectValue(value)
-	// reduce reflect value to underlying value
-	for rv.Kind() == reflect.Ptr {
-		rv = rv.Elem()
-	}
+func (e *Encoder) marshalJSON(value interface{}) ([]byte, error) {
+	rv := reflectValue(value)
 	fields := make([]interface{}, len(e.keys))
 	for i, key := range e.keys {
-		fields[i] = rv.FieldByName(key).Interface()
+		v := rv.FieldByName(key)
+		// TODO: check is zero
+		for v.Kind() == reflect.Ptr {
+			v = v.Elem()
+		}
+		fields[i] = v.Interface()
 	}
 	// @TODO: return proper error
-	b, _ := json.Marshal(fields)
-	return b
-}
-
-/* deprecated */
-
-func encodeOld(rv reflect.Value, keys []string) string {
-	fields := make([]string, len(keys))
-	for index, key := range keys {
-		if rv.Kind() == reflect.Ptr {
-			fields[index] = convert(reflect.Indirect(rv).FieldByName(key).Interface())
-		} else {
-			fields[index] = convert(rv.FieldByName(key).Interface())
-		}
-	}
-	return base64.StdEncoding.EncodeToString([]byte(strings.Join(fields, ",")))
-}
-
-func convert(field interface{}) string {
-	switch field.(type) {
-	case time.Time:
-		return fmt.Sprintf("%s?%s", field.(time.Time).UTC().Format(time.RFC3339Nano), fieldTime)
-	default:
-		return fmt.Sprintf("%v?%s", field, fieldString)
-	}
+	return json.Marshal(fields)
 }

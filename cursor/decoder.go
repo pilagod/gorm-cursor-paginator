@@ -6,147 +6,66 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
-	"strings"
-	"time"
 )
 
 var (
-	ErrInvalidDecodeReference = errors.New("decode reference should be struct")
-	ErrInvalidField           = errors.New("invalid field")
-	ErrInvalidOldField        = errors.New("invalid old field")
+	ErrDecodeInvalidCursor = errors.New("invalid cursor for decoding")
+	ErrDecodeInvalidModel  = errors.New("invalid model for decoding")
+	ErrDecodeKeyUnknown    = errors.New("unknown key on decoded model")
 )
 
-// NewDecoder creates cursor decoder
-func NewDecoder(ref interface{}, keys ...string) (*Decoder, error) {
-	// Get the reflected type
-	rt := toReflectValue(ref).Type()
-
-	// Reduce reflect type to underlying struct
-	for rt.Kind() == reflect.Slice || rt.Kind() == reflect.Ptr {
-		rt = rt.Elem()
+// NewDecoder creates cursor decoder for model
+func NewDecoder(model interface{}, keys ...string) (*Decoder, error) {
+	modelType := reflectType(model)
+	// model must be a struct
+	if modelType.Kind() != reflect.Struct {
+		return nil, ErrDecodeInvalidModel
 	}
-
-	if rt.Kind() != reflect.Struct {
-		// element of out must be struct, if not, just pass it to gorm to handle the error
-		return nil, ErrInvalidDecodeReference
+	for _, key := range keys {
+		if _, ok := modelType.FieldByName(key); !ok {
+			return nil, ErrDecodeKeyUnknown
+		}
 	}
-
-	return &Decoder{ref: rt, keys: keys}, nil
+	return &Decoder{
+		modelType: modelType,
+		keys:      keys,
+	}, nil
 }
 
 type Decoder struct {
-	ref  reflect.Type // reflected type of reference object
-	keys []string
+	modelType reflect.Type
+	keys      []string
 }
 
-func (d *Decoder) Decode(cursor string) []interface{} {
+func (d *Decoder) Decode(cursor string) (fields []interface{}, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = ErrDecodeInvalidCursor
+			return
+		}
+	}()
 	b, err := base64.StdEncoding.DecodeString(cursor)
-	// @TODO: return proper error
-	if err != nil {
-		return nil
+	if err != nil || !json.Valid(b) {
+		return nil, ErrDecodeInvalidCursor
 	}
-
-	// If it is not valid JSON, we should attempt to use the old decoding
-	// technique for backwards compatability.
-	if !json.Valid(b) {
-		return decodeOld(b)
+	jd := json.NewDecoder(bytes.NewBuffer(b))
+	if t, err := jd.Token(); err != nil || t != json.Delim('[') {
+		return nil, ErrDecodeInvalidCursor
 	}
-
-	// Create a JSON decoder
-	dec := json.NewDecoder(bytes.NewBuffer(b))
-
-	// Read open bracket
-	_, err = dec.Token()
-	if err != nil {
-		return nil
-	}
-
-	// Iterate over each key and decode the value
-	result := make([]interface{}, len(d.keys))
-	for i, key := range d.keys {
-		// Find the field in the struct
-		field, ok := d.ref.FieldByName(key)
-		if !ok {
-			return nil
+	for _, key := range d.keys {
+		f, _ := d.modelType.FieldByName(key)
+		rt := f.Type
+		for rt.Kind() == reflect.Ptr {
+			rt = rt.Elem()
 		}
-
-		// Get a copy of the field. JSON decoding requires a pointer but we want
-		// to return the same type as that of the referenced object. Therefore
-		// capture whether the value is a pointer or not and we will dereference
-		// the unmarshalled value before returning it if it is not originally a
-		// pointer.
-		isPtr := false
-		objType := field.Type
-		if objType.Kind() == reflect.Ptr {
-			isPtr = true
-			objType = objType.Elem()
+		v := reflect.New(rt).Interface()
+		if err := jd.Decode(&v); err != nil {
+			return nil, ErrDecodeInvalidCursor
 		}
-		v := reflect.New(objType).Interface()
-
-		// Decode the value
-		if err := dec.Decode(&v); err != nil {
-			return nil
-		}
-
-		// Need to dereference since everything is now a pointer
-		if !isPtr {
-			v = reflect.ValueOf(v).Elem().Interface()
-		}
-		result[i] = v
+		fields = append(fields, reflect.ValueOf(v).Elem().Interface())
 	}
-
-	return result
-}
-
-/* deprecated */
-
-func decodeOld(b []byte) []interface{} {
-	fieldsWithType := strings.Split(string(b), ",")
-	fields := make([]interface{}, len(fieldsWithType))
-	for i, fieldWithType := range fieldsWithType {
-		v, err := revert(fieldWithType)
-		if err != nil {
-			// Failed to parse old encoding
-			return nil
-		}
-
-		fields[i] = v
+	if t, err := jd.Token(); err != nil || t != json.Delim(']') {
+		return nil, ErrDecodeInvalidCursor
 	}
-	return fields
-}
-
-type fieldType string
-
-const (
-	fieldString fieldType = "STRING"
-	fieldTime   fieldType = "TIME"
-)
-
-func revert(fieldWithType string) (interface{}, error) {
-	field, fieldType, err := parse(fieldWithType)
-	if err != nil {
-		return nil, err
-	}
-
-	switch fieldType {
-	case fieldTime:
-		t, err := time.Parse(time.RFC3339Nano, field)
-		if err != nil {
-			t = time.Now().UTC()
-		}
-		return t, nil
-	default:
-		return field, nil
-	}
-}
-
-func parse(fieldWithType string) (string, fieldType, error) {
-	sep := strings.LastIndex(fieldWithType, "?")
-	if sep == -1 {
-		return "", fieldString, ErrInvalidOldField
-	}
-
-	field := fieldWithType[:sep]
-	fieldType := fieldType(fieldWithType[sep+1:])
-	return field, fieldType, nil
+	return
 }
