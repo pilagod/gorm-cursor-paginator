@@ -329,7 +329,11 @@ func (s *paginatorSuite) TestPaginateSpecialCharacter() {
 
 func (s *paginatorSuite) paginate(stmt *gorm.DB, out interface{}, q pq) cursor.Cursor {
 	p := q.Paginator()
-	if err := p.Paginate(stmt, out).Error; err != nil {
+	result, err := p.Paginate(stmt, out)
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+	if err := result.Error; err != nil {
 		s.FailNow(err.Error())
 	}
 	return p.GetNextCursor()
