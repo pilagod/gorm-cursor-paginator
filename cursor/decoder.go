@@ -21,6 +21,7 @@ func NewDecoder(model interface{}, keys ...string) (*Decoder, error) {
 	if modelType.Kind() != reflect.Struct {
 		return nil, ErrDecodeInvalidModel
 	}
+	// validate keys
 	for _, key := range keys {
 		if _, ok := modelType.FieldByName(key); !ok {
 			return nil, ErrDecodeKeyUnknown
@@ -38,34 +39,26 @@ type Decoder struct {
 }
 
 func (d *Decoder) Decode(cursor string) (fields []interface{}, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = ErrDecodeInvalidCursor
-			return
-		}
-	}()
 	b, err := base64.StdEncoding.DecodeString(cursor)
+	// ensure cursor content is json
 	if err != nil || !json.Valid(b) {
 		return nil, ErrDecodeInvalidCursor
 	}
 	jd := json.NewDecoder(bytes.NewBuffer(b))
+	// ensure cursor content is json array
 	if t, err := jd.Token(); err != nil || t != json.Delim('[') {
 		return nil, ErrDecodeInvalidCursor
 	}
 	for _, key := range d.keys {
+		// key is already validated when decoder is constructed
 		f, _ := d.modelType.FieldByName(key)
-		rt := f.Type
-		for rt.Kind() == reflect.Ptr {
-			rt = rt.Elem()
-		}
-		v := reflect.New(rt).Interface()
+		v := reflect.New(reflectType(f.Type)).Interface()
 		if err := jd.Decode(&v); err != nil {
 			return nil, ErrDecodeInvalidCursor
 		}
 		fields = append(fields, reflect.ValueOf(v).Elem().Interface())
 	}
-	if t, err := jd.Token(); err != nil || t != json.Delim(']') {
-		return nil, ErrDecodeInvalidCursor
-	}
+	// cursor must be a valid json after previous checks,
+	// so no need to check "]" is the last token
 	return
 }

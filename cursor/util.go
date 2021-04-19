@@ -16,11 +16,16 @@ func reflectValue(v interface{}) reflect.Value {
 }
 
 func reflectType(v interface{}) reflect.Type {
-	rv, ok := v.(reflect.Value)
-	if !ok {
-		rv = reflect.ValueOf(v)
+	var rt reflect.Type
+	if rvt, ok := v.(reflect.Type); ok {
+		rt = rvt
+	} else {
+		rv, ok := v.(reflect.Value)
+		if !ok {
+			rv = reflect.ValueOf(v)
+		}
+		rt = rv.Type()
 	}
-	rt := rv.Type()
 	for rt.Kind() == reflect.Ptr || rt.Kind() == reflect.Slice {
 		rt = rt.Elem()
 	}

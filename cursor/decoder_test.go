@@ -1,6 +1,7 @@
 package cursor
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -26,7 +27,18 @@ func (s *decoderSuite) TestInvalidModel() {
 
 func (s *decoderSuite) TestInvalidCursorFormat() {
 	d, _ := NewDecoder(struct{ Value string }{}, "Value")
+
 	_, err := d.Decode("123")
+	s.Equal(ErrDecodeInvalidCursor, err)
+
+	var c string
+
+	c = base64.StdEncoding.EncodeToString([]byte(`{"value": "123"}`))
+	_, err = d.Decode(c)
+	s.Equal(ErrDecodeInvalidCursor, err)
+
+	c = base64.StdEncoding.EncodeToString([]byte(`["123"}`))
+	_, err = d.Decode(c)
 	s.Equal(ErrDecodeInvalidCursor, err)
 }
 
