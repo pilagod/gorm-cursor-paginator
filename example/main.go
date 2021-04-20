@@ -43,24 +43,22 @@ func main() {
 
 	fmt.Println("===== page 1 - no cursor with limit 1 =====")
 
-	p := GetProductPaginator(PagingQuery{
-		Limit: pqLimit(1),
+	p := paginator.New(&paginator.Config{
+		Limit: 1,
 	})
 
 	var p1Products []Product
 
-	result, err := p.Paginate(stmt, &p1Products)
-	// err is paginator error
+	result, p1Cursor, err := p.Paginate(stmt, &p1Products)
+	// paginator error
 	if err != nil {
 		panic(err.Error())
 	}
-	// result error is gorm error
-	// more info about gorm error handling: https://gorm.io/docs/error_handling.html
+	// gorm error
+	// https://gorm.io/docs/error_handling.html
 	if result.Error != nil {
 		panic(result.Error.Error())
 	}
-	p1Cursor := p.GetNextCursor()
-
 	fmt.Println("products:", toJSON(p1Products))
 	fmt.Println("cursor:", toJSON(p1Cursor))
 
@@ -68,21 +66,19 @@ func main() {
 
 	fmt.Println("===== page 2 - use after cursor from page 1 =====")
 
-	p = GetProductPaginator(PagingQuery{
-		After: p1Cursor.After,
+	p = paginator.New(&paginator.Config{
+		After: *p1Cursor.After,
 	})
 
 	var p2Products []Product
 
-	result, err = p.Paginate(stmt, &p2Products)
+	result, p2Cursor, err := p.Paginate(stmt, &p2Products)
 	if err != nil {
 		panic(err.Error())
 	}
 	if result.Error != nil {
 		panic(result.Error.Error())
 	}
-	p2Cursor := p.GetNextCursor()
-
 	fmt.Println("products:", toJSON(p2Products))
 	fmt.Println("cursor:", toJSON(p2Cursor))
 
@@ -90,54 +86,21 @@ func main() {
 
 	fmt.Println("===== page 3 - use before cursor from page 2 =====")
 
-	p = GetProductPaginator(PagingQuery{
-		Before: p2Cursor.Before,
+	p = paginator.New(&paginator.Config{
+		Before: *p2Cursor.Before,
 	})
 
 	var p3Products []Product
 
-	result, err = p.Paginate(stmt, &p3Products)
+	result, p3Cursor, err := p.Paginate(stmt, &p3Products)
 	if err != nil {
 		panic(err.Error())
 	}
 	if result.Error != nil {
 		panic(result.Error.Error())
 	}
-	p3Cursor := p.GetNextCursor()
-
 	fmt.Println("products:", toJSON(p3Products))
 	fmt.Println("cursor:", toJSON(p3Cursor))
-}
-
-// PagingQuery for paging query
-type PagingQuery struct {
-	After  *string
-	Before *string
-	Limit  *int
-	Order  *string
-}
-
-func pqLimit(limit int) *int {
-	return &limit
-}
-
-// GetProductPaginator get paginator for product
-func GetProductPaginator(q PagingQuery) *paginator.Paginator {
-	p := paginator.New()
-	p.SetKeys("ID")
-	if q.After != nil {
-		p.SetAfterCursor(*q.After)
-	}
-	if q.Before != nil {
-		p.SetBeforeCursor(*q.Before)
-	}
-	if q.Limit != nil {
-		p.SetLimit(*q.Limit)
-	}
-	if q.Order != nil && *q.Order == "asc" {
-		p.SetOrder(paginator.ASC)
-	}
-	return p
 }
 
 func toJSON(v interface{}) string {
