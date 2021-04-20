@@ -40,6 +40,7 @@ func main() {
 	// paginator comes in
 
 	// page 1
+
 	fmt.Println("===== page 1 - no cursor with limit 1 =====")
 
 	p := GetProductPaginator(PagingQuery{
@@ -48,9 +49,13 @@ func main() {
 
 	var p1Products []Product
 
-	result := p.Paginate(stmt, &p1Products)
-
-	// for gorm error handling you can refer to: https://gorm.io/docs/error_handling.html
+	result, err := p.Paginate(stmt, &p1Products)
+	// err is paginator error
+	if err != nil {
+		panic(err.Error())
+	}
+	// result error is gorm error
+	// more info about gorm error handling: https://gorm.io/docs/error_handling.html
 	if result.Error != nil {
 		panic(result.Error.Error())
 	}
@@ -60,6 +65,7 @@ func main() {
 	fmt.Println("cursor:", toJSON(p1Cursor))
 
 	// page 2
+
 	fmt.Println("===== page 2 - use after cursor from page 1 =====")
 
 	p = GetProductPaginator(PagingQuery{
@@ -68,8 +74,10 @@ func main() {
 
 	var p2Products []Product
 
-	result = p.Paginate(stmt, &p2Products)
-
+	result, err = p.Paginate(stmt, &p2Products)
+	if err != nil {
+		panic(err.Error())
+	}
 	if result.Error != nil {
 		panic(result.Error.Error())
 	}
@@ -79,6 +87,7 @@ func main() {
 	fmt.Println("cursor:", toJSON(p2Cursor))
 
 	// page 3
+
 	fmt.Println("===== page 3 - use before cursor from page 2 =====")
 
 	p = GetProductPaginator(PagingQuery{
@@ -87,8 +96,10 @@ func main() {
 
 	var p3Products []Product
 
-	result = p.Paginate(stmt, &p3Products)
-
+	result, err = p.Paginate(stmt, &p3Products)
+	if err != nil {
+		panic(err.Error())
+	}
 	if result.Error != nil {
 		panic(result.Error.Error())
 	}
@@ -113,25 +124,19 @@ func pqLimit(limit int) *int {
 // GetProductPaginator get paginator for product
 func GetProductPaginator(q PagingQuery) *paginator.Paginator {
 	p := paginator.New()
-
 	p.SetKeys("ID")
-
 	if q.After != nil {
 		p.SetAfterCursor(*q.After)
 	}
-
 	if q.Before != nil {
 		p.SetBeforeCursor(*q.Before)
 	}
-
 	if q.Limit != nil {
 		p.SetLimit(*q.Limit)
 	}
-
 	if q.Order != nil && *q.Order == "asc" {
 		p.SetOrder(paginator.ASC)
 	}
-
 	return p
 }
 

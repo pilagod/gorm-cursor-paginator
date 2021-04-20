@@ -62,16 +62,19 @@ func (p *Paginator) GetNextCursor() cursor.Cursor {
 }
 
 // Paginate paginates data
-func (p *Paginator) Paginate(stmt *gorm.DB, out interface{}) *gorm.DB {
-	ctxStmt := stmt.WithContext(context.Background())
-	p.init(ctxStmt, out)
-	result := p.appendPagingQuery(ctxStmt, out).Find(out)
+func (p *Paginator) Paginate(db *gorm.DB, out interface{}) (stmt *gorm.DB, err error) {
+	stmt = db.WithContext(context.Background())
+	p.init(stmt, out)
+	if stmt, err = p.appendPagingQuery(stmt, out); err != nil {
+		return
+	}
+	result := stmt.Find(out)
 	// out must be a pointer or gorm will panic above
 	elems := reflect.ValueOf(out).Elem()
 	if elems.Kind() == reflect.Slice && elems.Len() > 0 {
 		p.postProcess(out)
 	}
-	return result
+	return result, nil
 }
 
 /* private */
@@ -95,23 +98,31 @@ func (p *Paginator) init(db *gorm.DB, out interface{}) {
 	}
 }
 
-func (p *Paginator) appendPagingQuery(stmt *gorm.DB, out interface{}) *gorm.DB {
-	decoder, _ := cursor.NewDecoder(out, p.keys...)
-	var fields []interface{}
-	if p.hasAfterCursor() {
-		fields = decoder.Decode(*p.cursor.After)
-	} else if p.hasBeforeCursor() {
-		fields = decoder.Decode(*p.cursor.Before)
+func (p *Paginator) appendPagingQuery(db *gorm.DB, out interface{}) (stmt *gorm.DB, err error) {
+	stmt = db
+	d, err := cursor.NewDecoder(out, p.keys...)
+	if err != nil {
+		return
 	}
-	if len(fields) > 0 {
+	var fs []interface{}
+	if p.hasAfterCursor() {
+		if fs, err = d.Decode(*p.cursor.After); err != nil {
+			return
+		}
+	} else if p.hasBeforeCursor() {
+		if fs, err = d.Decode(*p.cursor.Before); err != nil {
+			return
+		}
+	}
+	if len(fs) > 0 {
 		stmt = stmt.Where(
 			p.getCursorQuery(),
-			p.getCursorQueryArgs(fields)...,
+			p.getCursorQueryArgs(fs)...,
 		)
 	}
 	stmt = stmt.Limit(p.limit + 1)
 	stmt = stmt.Order(p.getOrder())
-	return stmt
+	return
 }
 
 func (p *Paginator) hasAfterCursor() bool {
@@ -160,7 +171,7 @@ func (p *Paginator) getOrder() string {
 	return strings.Join(orders, ", ")
 }
 
-func (p *Paginator) postProcess(out interface{}) {
+func (p *Paginator) postProcess(out interface{}) error {
 	elems := reflect.ValueOf(out).Elem()
 	hasMore := elems.Len() > p.limit
 	if hasMore {
@@ -171,14 +182,20 @@ func (p *Paginator) postProcess(out interface{}) {
 	}
 	encoder := cursor.NewEncoder(p.keys...)
 	if p.hasBeforeCursor() || hasMore {
-		cursor := encoder.Encode(elems.Index(elems.Len() - 1))
+		cursor, err := encoder.Encode(elems.Index(elems.Len() - 1))
+		if err != nil {
+			return err
+		}
 		p.next.After = &cursor
 	}
 	if p.hasAfterCursor() || (hasMore && p.hasBeforeCursor()) {
-		cursor := encoder.Encode(elems.Index(0))
+		cursor, err := encoder.Encode(elems.Index(0))
+		if err != nil {
+			return err
+		}
 		p.next.Before = &cursor
 	}
-	return
+	return nil
 }
 
 func reverse(v reflect.Value) reflect.Value {
