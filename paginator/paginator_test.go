@@ -69,9 +69,10 @@ func (s *paginatorSuite) TearDownSuite() {
 func (s *paginatorSuite) TestPaginateDefaultOptions() {
 	s.givenOrders(12)
 
-	// Key: ID
-	// Limit: 10
-	// Order: DESC
+	// Default Options
+	// * Key: ID
+	// * Limit: 10
+	// * Order: DESC
 
 	var p1 []order
 	_, c, _ := New().Paginate(s.db, &p1)
@@ -93,7 +94,7 @@ func (s *paginatorSuite) TestPaginateDefaultOptions() {
 	s.assertForwardOnly(c)
 }
 
-func (s *paginatorSuite) TestPaginateSliceOfPtrs() {
+func (s *paginatorSuite) TestPaginateSlicePtrs() {
 	s.givenOrders(12)
 
 	var p1 []*order
@@ -114,6 +115,24 @@ func (s *paginatorSuite) TestPaginateSliceOfPtrs() {
 	}).Paginate(s.db, &p3)
 	s.assertIDRange(p3, 12, 3)
 	s.assertForwardOnly(c)
+}
+
+func (s *paginatorSuite) TestPaginateNonSlice() {
+	s.givenOrders(3)
+
+	var o order
+	_, c, _ := New().Paginate(s.db, &o)
+	s.Equal(3, o.ID)
+	s.assertNoMore(c)
+}
+
+func (s *paginatorSuite) TestPaginateNoMore() {
+	s.givenOrders(3)
+
+	var orders []order
+	_, c, _ := New().Paginate(s.db, &orders)
+	s.assertIDRange(orders, 3, 1)
+	s.assertNoMore(c)
 }
 
 func (s *paginatorSuite) TestPaginateForwardShouldTakePrecedenceOverBackward() {
@@ -389,7 +408,24 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 
 	s.Equal(optOrders, builderOrders)
 	s.Equal(optCursor, builderCursor)
+}
 
+func (s *paginatorSuite) TestPaginateInvalidCursor() {
+	var orders []order
+	_, _, err := New(&Config{
+		After: "invalid cursor",
+	}).Paginate(s.db, &orders)
+	s.Equal(cursor.ErrDecodeInvalidCursor, err)
+}
+
+func (s *paginatorSuite) TestPaginateUnknownKey() {
+	var unknown struct {
+		UnknownKey string
+	}
+	_, _, err := New(&Config{
+		Keys: []string{"ID"},
+	}).Paginate(s.db, &unknown)
+	s.Equal(cursor.ErrDecodeKeyUnknown, err)
 }
 
 /* fixtures */
@@ -491,6 +527,11 @@ func (s *paginatorSuite) assertBackwardOnly(c cursor.Cursor) {
 func (s *paginatorSuite) assertBothDirections(c cursor.Cursor) {
 	s.NotNil(c.After)
 	s.NotNil(c.Before)
+}
+
+func (s *paginatorSuite) assertNoMore(c cursor.Cursor) {
+	s.Nil(c.After)
+	s.Nil(c.Before)
 }
 
 /* util */
