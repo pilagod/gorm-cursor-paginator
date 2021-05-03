@@ -69,14 +69,14 @@ func (p *Paginator) Paginate(db *gorm.DB, out interface{}) (result *gorm.DB, c c
 	if err = p.validate(); err != nil {
 		return
 	}
-	result = db.WithContext(context.Background())
-	p.setup(result, out)
+	dbCtx := db.WithContext(context.Background())
+	p.setup(dbCtx, out)
 	// decode cursor
 	fields, err := p.decodeCursor(out)
 	if err != nil {
 		return
 	}
-	result = p.appendPagingQuery(result, fields).Find(out)
+	result = p.appendPagingQuery(dbCtx, fields).Find(out)
 	// out must be a pointer or gorm will panic above
 	elems := reflect.ValueOf(out).Elem()
 	// only encode next cursor when elems is not empty slice
@@ -110,17 +110,17 @@ func (p *Paginator) validate() (err error) {
 }
 
 func (p *Paginator) setup(db *gorm.DB, out interface{}) {
-	var table string
+	var outTable string
 	for i := range p.rules {
 		if p.rules[i].SQLRepr == "" {
-			if table == "" {
+			if outTable == "" {
 				// https://stackoverflow.com/questions/51999441/how-to-get-a-table-name-from-a-model-in-gorm
 				stmt := &gorm.Statement{DB: db}
 				stmt.Parse(out)
-				table = stmt.Schema.Table
+				outTable = stmt.Schema.Table
 			}
 			// TODO: get gorm column tag
-			p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", table, strcase.ToSnake(p.rules[i].Key))
+			p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", outTable, strcase.ToSnake(p.rules[i].Key))
 		}
 		if p.rules[i].Order == "" {
 			p.rules[i].Order = p.order
