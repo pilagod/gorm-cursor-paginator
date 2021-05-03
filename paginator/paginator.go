@@ -23,7 +23,6 @@ func New(opts ...Option) *Paginator {
 // Paginator a builder doing pagination
 type Paginator struct {
 	cursor    cursor.Cursor
-	next      cursor.Cursor
 	keys      []string
 	tableKeys []string
 	limit     int
