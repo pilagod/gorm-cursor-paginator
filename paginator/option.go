@@ -26,7 +26,8 @@ func (c *Config) Apply(p *Paginator) {
 	if len(c.Rules) != 0 {
 		p.SetRules(c.Rules...)
 	}
-	if len(c.Keys) != 0 {
+	// only set keys when no rules presented
+	if len(c.Rules) == 0 && len(c.Keys) != 0 {
 		p.SetKeys(c.Keys...)
 	}
 	if c.Limit > 0 {
@@ -40,6 +41,13 @@ func (c *Config) Apply(p *Paginator) {
 	}
 	if c.Before != "" {
 		p.SetBeforeCursor(c.Before)
+	}
+}
+
+// WithRules configures rules for paginator
+func WithRules(rules ...Rule) Option {
+	return &Config{
+		Rules: rules,
 	}
 }
 

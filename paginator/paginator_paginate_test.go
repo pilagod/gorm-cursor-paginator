@@ -101,11 +101,11 @@ func (s *paginatorSuite) TestPaginateForwardShouldTakePrecedenceOverBackward() {
 
 func (s *paginatorSuite) TestPaginateSingleKey() {
 	now := time.Now()
-	// ID ordered by CreatedAt desc: 1, 3, 2
+	// ordered by CreatedAt desc -> 1, 3, 2
 	s.givenOrders([]order{
-		{CreatedAt: now.Add(1 * time.Hour)},
-		{CreatedAt: now.Add(-1 * time.Hour)},
-		{CreatedAt: now},
+		{ID: 1, CreatedAt: now.Add(1 * time.Hour)},
+		{ID: 2, CreatedAt: now.Add(-1 * time.Hour)},
+		{ID: 3, CreatedAt: now},
 	})
 
 	cfg := Config{
@@ -137,11 +137,11 @@ func (s *paginatorSuite) TestPaginateSingleKey() {
 
 func (s *paginatorSuite) TestPaginateMultipleKeys() {
 	now := time.Now()
-	// ID ordered by CreatedAt, ID desc: 2, 3, 1
+	// ordered by (CreatedAt desc, ID desc) -> 2, 3, 1
 	s.givenOrders([]order{
-		{CreatedAt: now},
-		{CreatedAt: now.Add(1 * time.Hour)},
-		{CreatedAt: now},
+		{ID: 1, CreatedAt: now},
+		{ID: 2, CreatedAt: now.Add(1 * time.Hour)},
+		{ID: 3, CreatedAt: now},
 	})
 
 	cfg := Config{
@@ -200,12 +200,12 @@ func (s *paginatorSuite) TestPaginateLimit() {
 
 func (s *paginatorSuite) TestPaginateOrder() {
 	now := time.Now()
-	// ID ordered by CreatedAt desc, ID desc: 4, 2, 3, 1
+	// ordered by (CreatedAt desc, ID desc) -> 4, 2, 3, 1
 	s.givenOrders([]order{
-		{CreatedAt: now},
-		{CreatedAt: now.Add(1 * time.Hour)},
-		{CreatedAt: now},
-		{CreatedAt: now.Add(2 * time.Hour)},
+		{ID: 1, CreatedAt: now},
+		{ID: 2, CreatedAt: now.Add(1 * time.Hour)},
+		{ID: 3, CreatedAt: now},
+		{ID: 4, CreatedAt: now.Add(2 * time.Hour)},
 	})
 
 	cfg := Config{
@@ -242,12 +242,12 @@ func (s *paginatorSuite) TestPaginateOrder() {
 
 func (s *paginatorSuite) TestPaginateOrderByKey() {
 	now := time.Now()
-	// ID ordered by CreatedAt desc, ID asc: 4, 2, 1, 3
+	// ordered by (CreatedAt desc, ID asc) -> 4, 2, 1, 3
 	s.givenOrders([]order{
-		{CreatedAt: now},
-		{CreatedAt: now.Add(1 * time.Hour)},
-		{CreatedAt: now},
-		{CreatedAt: now.Add(2 * time.Hour)},
+		{ID: 1, CreatedAt: now},
+		{ID: 2, CreatedAt: now.Add(1 * time.Hour)},
+		{ID: 3, CreatedAt: now},
+		{ID: 4, CreatedAt: now.Add(2 * time.Hour)},
 	})
 
 	cfg := Config{
@@ -289,9 +289,12 @@ func (s *paginatorSuite) TestPaginateOrderByKey() {
 func (s *paginatorSuite) TestPaginateJoinQuery() {
 	orders := s.givenOrders(3)
 	// total 5 items
-	s.givenItems(orders[0], 2) // ID: 1-3
-	s.givenItems(orders[1], 2) // ID: 4-5
-	s.givenItems(orders[2], 1) // ID: 6
+	// order 1 -> items (1, 2, 3)
+	// order 2 -> items (4, 5)
+	// order 3 -> items (6)
+	s.givenItems(orders[0], 2)
+	s.givenItems(orders[1], 2)
+	s.givenItems(orders[2], 1)
 
 	stmt := s.db.
 		Table("items").
@@ -326,8 +329,8 @@ func (s *paginatorSuite) TestPaginateJoinQuery() {
 func (s *paginatorSuite) TestPaginateJoinQueryWithAlias() {
 	orders := s.givenOrders(2)
 	// total 6 items
-	// order 1 -> (1, 3, 5)
-	// order 2 -> (2, 4, 6)
+	// order 1 -> items (1, 3, 5)
+	// order 2 -> items (2, 4, 6)
 	for i := 0; i < 3; i++ {
 		s.givenItems(orders[0], 1)
 		s.givenItems(orders[1], 1)
@@ -380,12 +383,12 @@ func (s *paginatorSuite) TestPaginateJoinQueryWithAlias() {
 }
 
 func (s *paginatorSuite) TestPaginateSpecialCharacter() {
-	// ID ordered by Remark desc: 2, 1, 4, 3 (":" > "," > "&" > "%")
+	// ordered by Remark desc -> 2, 1, 4, 3 (":" > "," > "&" > "%")
 	s.givenOrders([]order{
-		{Remark: ptrStr("a,b,c")},
-		{Remark: ptrStr("a:b:c")},
-		{Remark: ptrStr("a%b%c")},
-		{Remark: ptrStr("a&b&c")},
+		{ID: 1, Remark: ptrStr("a,b,c")},
+		{ID: 2, Remark: ptrStr("a:b:c")},
+		{ID: 3, Remark: ptrStr("a%b%c")},
+		{ID: 4, Remark: ptrStr("a&b&c")},
 	})
 
 	cfg := Config{
@@ -413,6 +416,27 @@ func (s *paginatorSuite) TestPaginateSpecialCharacter() {
 	).Paginate(s.db, &p3)
 	s.assertIDs(p3, 2, 1, 4)
 	s.assertForwardOnly(c)
+}
+
+func (s *paginatorSuite) TestPaginateRulesShouldTakePrecedenceOverKeys() {
+	now := time.Now()
+	// ordered by ID desc -> 2, 1
+	// ordered by CreatedAt desc -> 1, 2
+	s.givenOrders([]order{
+		{ID: 1, CreatedAt: now.Add(1 * time.Hour)},
+		{ID: 2, CreatedAt: now},
+	})
+
+	cfg := Config{
+		Rules: []Rule{
+			{Key: "CreatedAt"},
+		},
+		Keys: []string{"ID"},
+	}
+
+	var p []order
+	_, _, _ = New(&cfg).Paginate(s.db, &p)
+	s.assertIDs(p, 1, 2)
 }
 
 func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
