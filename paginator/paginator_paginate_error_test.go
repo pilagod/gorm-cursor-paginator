@@ -1,6 +1,8 @@
 package paginator
 
-import "github.com/pilagod/gorm-cursor-paginator/cursor"
+import (
+	"github.com/pilagod/gorm-cursor-paginator/cursor"
+)
 
 func (s *paginatorSuite) TestPaginateInvalidCursor() {
 	var orders []order

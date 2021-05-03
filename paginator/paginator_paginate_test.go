@@ -230,13 +230,13 @@ func (s *paginatorSuite) TestPaginateJoinQuery() {
 	s.givenItems(orders[1], 2) // ID: 4-5
 	s.givenItems(orders[2], 1) // ID: 6
 
-	cfg := Config{
-		Limit: 3,
-	}
-
 	stmt := s.db.
 		Table("items").
 		Joins("JOIN orders ON orders.id = items.order_id")
+
+	cfg := Config{
+		Limit: 3,
+	}
 
 	var p1 []item
 	_, c, _ := New(&cfg).Paginate(stmt, &p1)
@@ -257,6 +257,62 @@ func (s *paginatorSuite) TestPaginateJoinQuery() {
 		WithBefore(*c.Before),
 	).Paginate(stmt, &p3)
 	s.assertIDRange(p3, 5, 3)
+	s.assertForwardOnly(c)
+}
+
+func (s *paginatorSuite) TestPaginateJoinQueryWithAlias() {
+	orders := s.givenOrders(2)
+	// total 6 items
+	// order 1 -> (1, 3, 5)
+	// order 2 -> (2, 4, 6)
+	for i := 0; i < 3; i++ {
+		s.givenItems(orders[0], 1)
+		s.givenItems(orders[1], 1)
+	}
+
+	type itemDTO struct {
+		ID      int
+		OrderID int
+	}
+
+	stmt := s.db.
+		Select("its.id AS id, ods.id AS order_id").
+		Table("items AS its").
+		Joins("JOIN orders AS ods ON ods.id = its.order_id")
+
+	cfg := Config{
+		Rules: []Rule{
+			{
+				Key:     "OrderID",
+				SQLRepr: "ods.id",
+			},
+			{
+				Key:     "ID",
+				SQLRepr: "its.id",
+			},
+		},
+		Limit: 3,
+	}
+
+	var p1 []itemDTO
+	_, c, _ := New(&cfg).Paginate(stmt, &p1)
+	s.assertIDs(p1, 6, 4, 2)
+	s.assertForwardOnly(c)
+
+	var p2 []itemDTO
+	_, c, _ = New(
+		&cfg,
+		WithAfter(*c.After),
+	).Paginate(stmt, &p2)
+	s.assertIDs(p2, 5, 3, 1)
+	s.assertBackwardOnly(c)
+
+	var p3 []itemDTO
+	_, c, _ = New(
+		&cfg,
+		WithBefore(*c.Before),
+	).Paginate(stmt, &p3)
+	s.assertIDs(p3, 6, 4, 2)
 	s.assertForwardOnly(c)
 }
 

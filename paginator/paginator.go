@@ -28,6 +28,10 @@ type Paginator struct {
 	order  Order
 }
 
+func (p *Paginator) SetRules(rules ...Rule) {
+	p.rules = rules
+}
+
 // SetKeys sets paging keys
 func (p *Paginator) SetKeys(keys ...string) {
 	rules := make([]Rule, len(keys))
@@ -36,7 +40,7 @@ func (p *Paginator) SetKeys(keys ...string) {
 			Key: key,
 		}
 	}
-	p.rules = rules
+	p.SetRules(rules...)
 }
 
 // SetLimit sets paging limit
@@ -95,7 +99,9 @@ func (p *Paginator) init(db *gorm.DB, out interface{}) {
 	stmt.Parse(out)
 	table := stmt.Schema.Table
 	for i := range p.rules {
-		p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", table, strcase.ToSnake(p.rules[i].Key))
+		if p.rules[i].SQLRepr == "" {
+			p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", table, strcase.ToSnake(p.rules[i].Key))
+		}
 		p.rules[i].Order = p.order
 	}
 }
