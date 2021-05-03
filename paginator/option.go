@@ -30,7 +30,7 @@ func (c *Config) Apply(p *Paginator) {
 	if len(c.Rules) == 0 && len(c.Keys) != 0 {
 		p.SetKeys(c.Keys...)
 	}
-	if c.Limit > 0 {
+	if c.Limit != 0 {
 		p.SetLimit(c.Limit)
 	}
 	if c.Order != "" {

@@ -4,16 +4,24 @@ import (
 	"github.com/pilagod/gorm-cursor-paginator/cursor"
 )
 
+func (s *paginatorSuite) TestPaginateInvalidLimit() {
+	var placeholder interface{}
+	_, _, err := New(&Config{
+		Limit: -1,
+	}).Paginate(s.db, &placeholder)
+	s.Equal(ErrInvalidLimit, err)
+}
+
 func (s *paginatorSuite) TestPaginateInvalidOrder() {
-	var orders []order
+	var placeholder interface{}
 	_, _, err := New(&Config{
 		Order: "123",
-	}).Paginate(s.db, &orders)
+	}).Paginate(s.db, &placeholder)
 	s.Equal(ErrInvalidOrder, err)
 }
 
 func (s *paginatorSuite) TestPaginateInvalidOrderOnRules() {
-	var orders []order
+	var placeholder interface{}
 	_, _, err := New(&Config{
 		Rules: []Rule{
 			{
@@ -21,7 +29,7 @@ func (s *paginatorSuite) TestPaginateInvalidOrderOnRules() {
 				Order: "123",
 			},
 		},
-	}).Paginate(s.db, &orders)
+	}).Paginate(s.db, &placeholder)
 	s.Equal(ErrInvalidOrder, err)
 }
 

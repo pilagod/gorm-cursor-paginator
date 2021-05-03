@@ -98,6 +98,9 @@ func (p *Paginator) Paginate(db *gorm.DB, out interface{}) (result *gorm.DB, c c
 /* private */
 
 func (p *Paginator) validate() (err error) {
+	if p.limit < 0 {
+		return ErrInvalidLimit
+	}
 	if err = p.order.Validate(false); err != nil {
 		return
 	}

@@ -4,5 +4,6 @@ import "errors"
 
 // Errors for paginator
 var (
-	ErrInvalidOrder = errors.New("invalid order for paginator")
+	ErrInvalidLimit = errors.New("limit should be greater than or equal to 0")
+	ErrInvalidOrder = errors.New("order should be ASC or DESC")
 )
