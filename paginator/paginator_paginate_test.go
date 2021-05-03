@@ -100,11 +100,12 @@ func (s *paginatorSuite) TestPaginateForwardShouldTakePrecedenceOverBackward() {
 }
 
 func (s *paginatorSuite) TestPaginateSingleKey() {
+	now := time.Now()
 	// ID ordered by CreatedAt desc: 1, 3, 2
 	s.givenOrders([]order{
-		{CreatedAt: time.Now().Add(1 * time.Hour)},
-		{CreatedAt: time.Now().Add(-1 * time.Hour)},
-		{CreatedAt: time.Now()},
+		{CreatedAt: now.Add(1 * time.Hour)},
+		{CreatedAt: now.Add(-1 * time.Hour)},
+		{CreatedAt: now},
 	})
 
 	cfg := Config{
@@ -135,11 +136,12 @@ func (s *paginatorSuite) TestPaginateSingleKey() {
 }
 
 func (s *paginatorSuite) TestPaginateMultipleKeys() {
+	now := time.Now()
 	// ID ordered by CreatedAt, ID desc: 2, 3, 1
 	s.givenOrders([]order{
-		{CreatedAt: time.Now()},
-		{CreatedAt: time.Now().Add(1 * time.Hour)},
-		{CreatedAt: time.Now()},
+		{CreatedAt: now},
+		{CreatedAt: now.Add(1 * time.Hour)},
+		{CreatedAt: now},
 	})
 
 	cfg := Config{
@@ -197,29 +199,90 @@ func (s *paginatorSuite) TestPaginateLimit() {
 }
 
 func (s *paginatorSuite) TestPaginateOrder() {
-	s.givenOrders(20)
+	now := time.Now()
+	// ID ordered by CreatedAt desc, ID desc: 4, 2, 3, 1
+	s.givenOrders([]order{
+		{CreatedAt: now},
+		{CreatedAt: now.Add(1 * time.Hour)},
+		{CreatedAt: now},
+		{CreatedAt: now.Add(2 * time.Hour)},
+	})
+
+	cfg := Config{
+		Keys:  []string{"CreatedAt", "ID"},
+		Limit: 2,
+	}
 
 	var p1 []order
-	_, c, _ := New(&Config{
-		Order: ASC,
-	}).Paginate(s.db, &p1)
-	s.assertIDRange(p1, 1, 10)
+	_, c, _ := New(
+		&cfg,
+		WithOrder(ASC),
+	).Paginate(s.db, &p1)
+	s.assertIDs(p1, 1, 3)
 	s.assertForwardOnly(c)
 
 	var p2 []order
-	_, c, _ = New(&Config{
-		Before: *c.After,
-		Order:  DESC,
-	}).Paginate(s.db, &p2)
-	s.assertIDRange(p2, 20, 11)
+	_, c, _ = New(
+		&cfg,
+		WithBefore(*c.After),
+		WithOrder(DESC),
+	).Paginate(s.db, &p2)
+	s.assertIDs(p2, 4, 2)
 	s.assertForwardOnly(c)
 
 	var p3 []order
-	_, c, _ = New(&Config{
-		Before: *c.After,
-		Order:  ASC,
-	}).Paginate(s.db, &p3)
-	s.assertIDRange(p3, 1, 10)
+	_, c, _ = New(
+		&cfg,
+		WithBefore(*c.After),
+		WithOrder(ASC),
+	).Paginate(s.db, &p3)
+	s.assertIDs(p3, 1, 3)
+	s.assertForwardOnly(c)
+}
+
+func (s *paginatorSuite) TestPaginateOrderByKey() {
+	now := time.Now()
+	// ID ordered by CreatedAt desc, ID asc: 4, 2, 1, 3
+	s.givenOrders([]order{
+		{CreatedAt: now},
+		{CreatedAt: now.Add(1 * time.Hour)},
+		{CreatedAt: now},
+		{CreatedAt: now.Add(2 * time.Hour)},
+	})
+
+	cfg := Config{
+		Rules: []Rule{
+			{
+				Key: "CreatedAt",
+			},
+			{
+				Key:   "ID",
+				Order: ASC,
+			},
+		},
+		Limit: 2,
+		Order: DESC, // default order for no order rule
+	}
+
+	var p1 []order
+	_, c, _ := New(&cfg).Paginate(s.db, &p1)
+	s.assertIDs(p1, 4, 2)
+	s.assertForwardOnly(c)
+
+	var p2 []order
+	_, c, _ = New(
+		&cfg,
+		WithAfter(*c.After),
+	).Paginate(s.db, &p2)
+	s.assertIDs(p2, 1, 3)
+	s.assertBackwardOnly(c)
+
+	var p3 []order
+	_, c, _ = New(
+		&cfg,
+		WithBefore(*c.Before),
+	).Paginate(s.db, &p3)
+	s.assertIDs(p3, 4, 2)
 	s.assertForwardOnly(c)
 }
 

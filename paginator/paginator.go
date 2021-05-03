@@ -29,7 +29,8 @@ type Paginator struct {
 }
 
 func (p *Paginator) SetRules(rules ...Rule) {
-	p.rules = rules
+	p.rules = make([]Rule, len(rules))
+	copy(p.rules, rules)
 }
 
 // SetKeys sets paging keys
@@ -66,7 +67,7 @@ func (p *Paginator) SetBeforeCursor(beforeCursor string) {
 // Paginate paginates data
 func (p *Paginator) Paginate(db *gorm.DB, out interface{}) (result *gorm.DB, c cursor.Cursor, err error) {
 	result = db.WithContext(context.Background())
-	p.init(result, out)
+	p.setup(result, out)
 	// decode cursor
 	fields, err := p.decodeCursor(out)
 	if err != nil {
@@ -93,16 +94,22 @@ func (p *Paginator) Paginate(db *gorm.DB, out interface{}) (result *gorm.DB, c c
 
 /* private */
 
-func (p *Paginator) init(db *gorm.DB, out interface{}) {
-	// https://stackoverflow.com/questions/51999441/how-to-get-a-table-name-from-a-model-in-gorm
-	stmt := &gorm.Statement{DB: db}
-	stmt.Parse(out)
-	table := stmt.Schema.Table
+func (p *Paginator) setup(db *gorm.DB, out interface{}) {
+	var table string
 	for i := range p.rules {
 		if p.rules[i].SQLRepr == "" {
+			if table == "" {
+				// https://stackoverflow.com/questions/51999441/how-to-get-a-table-name-from-a-model-in-gorm
+				stmt := &gorm.Statement{DB: db}
+				stmt.Parse(out)
+				table = stmt.Schema.Table
+			}
+			// TODO: get gorm column tag
 			p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", table, strcase.ToSnake(p.rules[i].Key))
 		}
-		p.rules[i].Order = p.order
+		if p.rules[i].Order == "" {
+			p.rules[i].Order = p.order
+		}
 	}
 }
 
