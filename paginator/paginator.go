@@ -66,6 +66,9 @@ func (p *Paginator) SetBeforeCursor(beforeCursor string) {
 
 // Paginate paginates data
 func (p *Paginator) Paginate(db *gorm.DB, out interface{}) (result *gorm.DB, c cursor.Cursor, err error) {
+	if err = p.validate(); err != nil {
+		return
+	}
 	result = db.WithContext(context.Background())
 	p.setup(result, out)
 	// decode cursor
@@ -93,6 +96,18 @@ func (p *Paginator) Paginate(db *gorm.DB, out interface{}) (result *gorm.DB, c c
 }
 
 /* private */
+
+func (p *Paginator) validate() (err error) {
+	if err = p.order.Validate(false); err != nil {
+		return
+	}
+	for _, rule := range p.rules {
+		if err = rule.Validate(); err != nil {
+			return
+		}
+	}
+	return
+}
 
 func (p *Paginator) setup(db *gorm.DB, out interface{}) {
 	var table string

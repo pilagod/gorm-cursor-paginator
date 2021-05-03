@@ -15,3 +15,13 @@ func (o *Order) Flip() Order {
 	}
 	return ASC
 }
+
+func (o *Order) Validate(allowEmpty bool) error {
+	if *o == ASC || *o == DESC {
+		return nil
+	}
+	if allowEmpty && *o == "" {
+		return nil
+	}
+	return ErrInvalidOrder
+}
