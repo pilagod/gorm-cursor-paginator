@@ -9,8 +9,8 @@ const (
 	DESC Order = "DESC"
 )
 
-func flip(order Order) Order {
-	if order == ASC {
+func (o *Order) Flip() Order {
+	if *o == ASC {
 		return DESC
 	}
 	return ASC

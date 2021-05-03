@@ -1,6 +1,8 @@
 package paginator
 
 import (
+	"fmt"
+	"math"
 	"reflect"
 	"testing"
 	"time"
@@ -15,29 +17,30 @@ func TestPaginator(t *testing.T) {
 	suite.Run(t, &paginatorSuite{})
 }
 
-/* test model */
+/* models */
 
 type order struct {
 	ID        int       `gorm:"primaryKey"`
-	Name      *string   `gorm:"type:varchar(30)"`
-	Items     []item    `gorm:"foreignKey:OrderID"`
+	Remark    *string   `gorm:"varchar(30)"`
 	CreatedAt time.Time `gorm:"type:timestamp;not null"`
 }
 
 type item struct {
-	ID      int   `gorm:"primaryKey"`
-	OrderID int   `gorm:"type:integer;not null"`
-	Order   Order `gorm:"foreignKey:OrderID"`
+	ID      int     `gorm:"primaryKey"`
+	Name    string  `gorm:"type:varchar(30);not null"`
+	Remark  *string `gorm:"type:varchar(30)"`
+	OrderID int     `gorm:"type:integer;not null"`
+	Order   Order   `gorm:"foreignKey:OrderID"`
 }
 
-/* suite */
+/* paginator suite */
 
 type paginatorSuite struct {
 	suite.Suite
 	db *gorm.DB
 }
 
-/* suite setup */
+/* setup */
 
 func (s *paginatorSuite) SetupSuite() {
 	db, err := gorm.Open(
@@ -51,6 +54,8 @@ func (s *paginatorSuite) SetupSuite() {
 	s.db.AutoMigrate(&order{}, &item{})
 }
 
+/* teardown */
+
 func (s *paginatorSuite) TearDownTest() {
 	s.db.Exec("TRUNCATE orders, items RESTART IDENTITY;")
 }
@@ -59,416 +64,478 @@ func (s *paginatorSuite) TearDownSuite() {
 	s.db.Migrator().DropTable(&item{}, &order{})
 }
 
-/* suite test cases */
+/* tests */
 
 func (s *paginatorSuite) TestPaginateDefaultOptions() {
-	var orders = s.givenOrders(12)
+	s.givenOrders(12)
 
-	var o1 []order
-	cursor := s.paginate(s.db, &o1, pq{})
-	s.assertOrders(orders, 11, 2, o1)
-	s.assertOnlyAfter(cursor)
+	// Default Options
+	// * Key: ID
+	// * Limit: 10
+	// * Order: DESC
 
-	var o2 []order
-	cursor = s.paginate(s.db, &o2, pq{
-		After: cursor.After,
-	})
-	s.assertOrders(orders, 1, 0, o2)
-	s.assertOnlyBefore(cursor)
+	var p1 []order
+	_, c, _ := New().Paginate(s.db, &p1)
+	s.assertIDRange(p1, 12, 3)
+	s.assertForwardOnly(c)
 
-	var o3 []order
-	cursor = s.paginate(s.db, &o3, pq{
-		Before: cursor.Before,
-	})
-	s.Equal(o1, o3)
-	s.assertOnlyAfter(cursor)
+	var p2 []order
+	_, c, _ = New(&Config{
+		After: *c.After,
+	}).Paginate(s.db, &p2)
+	s.assertIDRange(p2, 2, 1)
+	s.assertBackwardOnly(c)
+
+	var p3 []order
+	_, c, _ = New(&Config{
+		Before: *c.Before,
+	}).Paginate(s.db, &p3)
+	s.assertIDRange(p3, 12, 3)
+	s.assertForwardOnly(c)
 }
 
-func (s *paginatorSuite) TestPaginateDefaultOptionsForSliceStructPointers() {
-	var ptrOrders = s.givenPtrOrders(12)
+func (s *paginatorSuite) TestPaginateSlicePtrs() {
+	s.givenOrders(12)
 
-	var o1 []*order
-	cursor := s.paginate(s.db, &o1, pq{})
-	s.assertPtrOrders(ptrOrders, 11, 2, o1)
-	s.assertOnlyAfter(cursor)
+	var p1 []*order
+	_, c, _ := New().Paginate(s.db, &p1)
+	s.assertIDRange(p1, 12, 3)
+	s.assertForwardOnly(c)
 
-	var o2 []*order
-	cursor = s.paginate(s.db, &o2, pq{
-		After: cursor.After,
-	})
-	s.assertPtrOrders(ptrOrders, 1, 0, o2)
-	s.assertOnlyBefore(cursor)
+	var p2 []*order
+	_, c, _ = New(&Config{
+		After: *c.After,
+	}).Paginate(s.db, &p2)
+	s.assertIDRange(p2, 2, 1)
+	s.assertBackwardOnly(c)
 
-	var o3 []*order
-	cursor = s.paginate(s.db, &o3, pq{
-		Before: cursor.Before,
-	})
-	s.Equal(o1, o3)
-	s.assertOnlyAfter(cursor)
+	var p3 []*order
+	_, c, _ = New(&Config{
+		Before: *c.Before,
+	}).Paginate(s.db, &p3)
+	s.assertIDRange(p3, 12, 3)
+	s.assertForwardOnly(c)
 }
 
-func (s *paginatorSuite) TestPaginateAfterCursorShouldTakePrecedenceOverBeforeCursor() {
-	var orders = s.givenOrders(10)
+func (s *paginatorSuite) TestPaginateNonSlice() {
+	s.givenOrders(3)
 
-	var o1 []order
-	cursor := s.paginate(s.db, &o1, pq{
-		Limit: pqLimit(3),
-	})
-	s.assertOnlyAfter(cursor)
+	var o order
+	_, c, _ := New().Paginate(s.db, &o)
+	s.Equal(3, o.ID)
+	s.assertNoMore(c)
+}
 
-	var o2 []order
-	cursor = s.paginate(s.db, &o2, pq{
-		After: cursor.After,
-		Limit: pqLimit(3),
-	})
-	s.assertBoth(cursor)
+func (s *paginatorSuite) TestPaginateNoMore() {
+	s.givenOrders(3)
 
-	var o3 []order
-	cursor = s.paginate(s.db, &o3, pq{
-		After:  cursor.After,
-		Before: cursor.Before,
-	})
-	s.assertOrders(orders, 3, 0, o3)
-	s.assertOnlyBefore(cursor)
+	var orders []order
+	_, c, _ := New().Paginate(s.db, &orders)
+	s.assertIDRange(orders, 3, 1)
+	s.assertNoMore(c)
+}
+
+func (s *paginatorSuite) TestPaginateForwardShouldTakePrecedenceOverBackward() {
+	s.givenOrders(30)
+
+	var p1 []order
+	_, c, _ := New().Paginate(s.db, &p1)
+	s.assertIDRange(p1, 30, 21)
+	s.assertForwardOnly(c)
+
+	var p2 []order
+	_, c, _ = New(&Config{
+		After: *c.After,
+	}).Paginate(s.db, &p2)
+	s.assertIDRange(p2, 20, 11)
+	s.assertBothDirections(c)
+
+	var p3 []order
+	_, c, _ = New(&Config{
+		After:  *c.After,
+		Before: *c.Before,
+	}).Paginate(s.db, &p3)
+	s.assertIDRange(p3, 10, 1)
+	s.assertBackwardOnly(c)
 }
 
 func (s *paginatorSuite) TestPaginateSingleKey() {
-	var orders = s.givenCustomOrders([]order{
-		{CreatedAt: time.Now()},
+	// ID ordered by CreatedAt desc: 1, 3, 2
+	s.givenOrders([]order{
 		{CreatedAt: time.Now().Add(1 * time.Hour)},
 		{CreatedAt: time.Now().Add(-1 * time.Hour)},
-		{CreatedAt: time.Now().Add(2 * time.Hour)},
-		{CreatedAt: time.Now().Add(-2 * time.Hour)},
+		{CreatedAt: time.Now()},
 	})
-	var keys = []string{"CreatedAt"}
 
-	var o1 []order
-	cursor := s.paginate(s.db, &o1, pq{
-		Keys:  keys,
-		Limit: pqLimit(2),
-	})
-	s.assertOrders(orders, 3, 1, o1)
-	s.assertOnlyAfter(cursor)
+	cfg := Config{
+		Keys:  []string{"CreatedAt"},
+		Limit: 2,
+	}
 
-	var o2 []order
-	cursor = s.paginate(s.db, &o2, pq{
-		Keys:  keys,
-		After: cursor.After,
-	})
-	s.assertOrders(orders, 0, 4, o2)
-	s.assertOnlyBefore(cursor)
+	var p1 []order
+	_, c, _ := New(&cfg).Paginate(s.db, &p1)
+	s.assertIDs(p1, 1, 3)
+	s.assertForwardOnly(c)
 
-	var o3 []order
-	cursor = s.paginate(s.db, &o3, pq{
-		Keys:   keys,
-		Before: cursor.Before,
-	})
-	s.Equal(o1, o3)
-	s.assertOnlyAfter(cursor)
+	var p2 []order
+	_, c, _ = New(
+		&cfg,
+		WithAfter(*c.After),
+	).Paginate(s.db, &p2)
+	s.assertIDs(p2, 2)
+	s.assertBackwardOnly(c)
+
+	var p3 []order
+	_, c, _ = New(
+		&cfg,
+		WithBefore(*c.Before),
+	).Paginate(s.db, &p3)
+	s.assertIDs(p3, 1, 3)
+	s.assertForwardOnly(c)
 }
 
 func (s *paginatorSuite) TestPaginateMultipleKeys() {
-	var orders = s.givenCustomOrders([]order{
-		{CreatedAt: time.Now().Add(2 * time.Hour)},
+	// ID ordered by CreatedAt, ID desc: 2, 3, 1
+	s.givenOrders([]order{
 		{CreatedAt: time.Now()},
-		{CreatedAt: time.Now().Add(3 * time.Hour)},
 		{CreatedAt: time.Now().Add(1 * time.Hour)},
-		{CreatedAt: time.Now().Add(2 * time.Hour)},
+		{CreatedAt: time.Now()},
 	})
-	var keys = []string{"CreatedAt", "ID"}
 
-	var o1 []order
-	cursor := s.paginate(s.db, &o1, pq{
-		Keys:  keys,
-		Limit: pqLimit(3),
-	})
-	s.assertOrders(orders, 2, 0, o1)
-	s.assertOnlyAfter(cursor)
+	cfg := Config{
+		Keys:  []string{"CreatedAt", "ID"},
+		Limit: 2,
+	}
 
-	var o2 []order
-	cursor = s.paginate(s.db, &o2, pq{
-		Keys:  keys,
-		After: cursor.After,
-	})
-	s.assertOrders(orders, 3, 1, o2)
-	s.assertOnlyBefore(cursor)
+	var p1 []order
+	_, c, _ := New(&cfg).Paginate(s.db, &p1)
+	s.assertIDs(p1, 2, 3)
+	s.assertForwardOnly(c)
 
-	var o3 []order
-	cursor = s.paginate(s.db, &o3, pq{
-		Keys:   keys,
-		Before: cursor.Before,
-	})
-	s.Equal(o1, o3)
-	s.assertOnlyAfter(cursor)
+	var p2 []order
+	_, c, _ = New(
+		&cfg,
+		WithAfter(*c.After),
+	).Paginate(s.db, &p2)
+	s.assertIDs(p2, 1)
+	s.assertBackwardOnly(c)
+
+	var p3 []order
+	_, c, _ = New(
+		&cfg,
+		WithBefore(*c.Before),
+	).Paginate(s.db, &p3)
+	s.assertIDs(p3, 2, 3)
+	s.assertForwardOnly(c)
 }
 
-func (s *paginatorSuite) TestPaginateLimitOption() {
-	s.givenOrders(5)
+func (s *paginatorSuite) TestPaginateLimit() {
+	s.givenOrders(10)
 
-	var o1 []order
-	cursor := s.paginate(s.db, &o1, pq{
-		Limit: pqLimit(1),
-	})
-	s.Len(o1, 1)
-	s.assertOnlyAfter(cursor)
+	var p1 []order
+	_, c, _ := New(&Config{
+		Limit: 1,
+	}).Paginate(s.db, &p1)
+	s.Len(p1, 1)
+	s.assertForwardOnly(c)
 
-	var o2 []order
-	cursor = s.paginate(s.db, &o2, pq{
-		After: cursor.After,
-		Limit: pqLimit(20),
-	})
-	s.Len(o2, 4)
-	s.assertOnlyBefore(cursor)
+	var p2 []order
+	_, c, _ = New(&Config{
+		Limit: 20,
+		After: *c.After,
+	}).Paginate(s.db, &p2)
+	s.Len(p2, 9)
+	s.assertBackwardOnly(c)
 
-	var o3 []order
-	cursor = s.paginate(s.db, &o3, pq{
-		Before: cursor.Before,
-	})
-	s.Equal(o1, o3)
-	s.assertOnlyAfter(cursor)
+	var p3 []order
+	_, c, _ = New(&Config{
+		Limit:  100,
+		Before: *c.Before,
+	}).Paginate(s.db, &p3)
+	s.Len(p3, 1)
+	s.assertForwardOnly(c)
 }
 
-func (s *paginatorSuite) TestPaginateOrderOption() {
-	var orders = s.givenOrders(10)
+func (s *paginatorSuite) TestPaginateOrder() {
+	s.givenOrders(20)
 
-	var o1 []order
-	cursor := s.paginate(s.db, &o1, pq{
-		Limit: pqLimit(3),
-		Order: pqOrder(ASC),
-	})
-	s.assertOrders(orders, 0, 2, o1)
-	s.assertOnlyAfter(cursor)
+	var p1 []order
+	_, c, _ := New(&Config{
+		Order: ASC,
+	}).Paginate(s.db, &p1)
+	s.assertIDRange(p1, 1, 10)
+	s.assertForwardOnly(c)
 
-	var o2 []order
-	cursor = s.paginate(s.db, &o2, pq{
-		Before: cursor.After,
-		Limit:  pqLimit(3),
-	})
-	s.assertOrders(orders, 5, 3, o2)
-	s.assertBoth(cursor)
+	var p2 []order
+	_, c, _ = New(&Config{
+		Before: *c.After,
+		Order:  DESC,
+	}).Paginate(s.db, &p2)
+	s.assertIDRange(p2, 20, 11)
+	s.assertForwardOnly(c)
 
-	var o3 []order
-	cursor = s.paginate(s.db, &o3, pq{
-		Before: cursor.After,
-		Order:  pqOrder(ASC),
-	})
-	s.Equal(o1, o3)
-	s.assertOnlyAfter(cursor)
+	var p3 []order
+	_, c, _ = New(&Config{
+		Before: *c.After,
+		Order:  ASC,
+	}).Paginate(s.db, &p3)
+	s.assertIDRange(p3, 1, 10)
+	s.assertForwardOnly(c)
 }
 
 func (s *paginatorSuite) TestPaginateJoinQuery() {
-	var orders = s.givenOrders(3)
-	var items = s.givenItems(orders[0].ID, 5)
-	s.givenItems(orders[1].ID, 2)
-	s.givenItems(orders[2].ID, 1)
+	orders := s.givenOrders(3)
+	// total 5 items
+	s.givenItems(orders[0], 2) // ID: 1-3
+	s.givenItems(orders[1], 2) // ID: 4-5
+	s.givenItems(orders[2], 1) // ID: 6
 
-	var stmt = s.db.
+	cfg := Config{
+		Limit: 3,
+	}
+
+	stmt := s.db.
 		Table("items").
-		Joins("LEFT JOIN orders ON orders.id = items.order_id").
-		Where("orders.id = ?", orders[0].ID)
+		Joins("JOIN orders ON orders.id = items.order_id")
 
-	var i1 []item
-	cursor := s.paginate(stmt, &i1, pq{
-		Limit: pqLimit(3),
-	})
-	s.Len(i1, 3)
-	s.assertItems(items, 4, 2, i1)
-	s.assertOnlyAfter(cursor)
+	var p1 []item
+	_, c, _ := New(&cfg).Paginate(stmt, &p1)
+	s.assertIDRange(p1, 5, 3)
+	s.assertForwardOnly(c)
 
-	var i2 []item
-	cursor = s.paginate(stmt, &i2, pq{
-		After: cursor.After,
-	})
-	s.Len(i2, 2)
-	s.assertItems(items, 1, 0, i2)
-	s.assertOnlyBefore(cursor)
+	var p2 []item
+	_, c, _ = New(
+		&cfg,
+		WithAfter(*c.After),
+	).Paginate(stmt, &p2)
+	s.assertIDRange(p2, 2, 1)
+	s.assertBackwardOnly(c)
 
-	var i3 []item
-	cursor = s.paginate(stmt, &i3, pq{
-		Before: cursor.Before,
-	})
-	s.Equal(i1, i3)
-	s.assertOnlyAfter(cursor)
+	var p3 []item
+	_, c, _ = New(
+		&cfg,
+		WithBefore(*c.Before),
+	).Paginate(stmt, &p3)
+	s.assertIDRange(p3, 5, 3)
+	s.assertForwardOnly(c)
 }
 
 func (s *paginatorSuite) TestPaginateSpecialCharacter() {
-	s.givenCustomOrders([]order{
-		{Name: pqString("a,b,c")},
-		{Name: pqString("a:b:c")},
-		{Name: pqString("a%b%c")},
+	// ID ordered by Remark desc: 2, 1, 4, 3 (":" > "," > "&" > "%")
+	s.givenOrders([]order{
+		{Remark: ptrStr("a,b,c")},
+		{Remark: ptrStr("a:b:c")},
+		{Remark: ptrStr("a%b%c")},
+		{Remark: ptrStr("a&b&c")},
 	})
-	var keys = []string{"Name"}
 
-	var o1 []order
-	cursor := s.paginate(s.db, &o1, pq{
-		Keys:  keys,
-		Limit: pqLimit(1),
-	})
-	s.Len(o1, 1)
-	s.assertOnlyAfter(cursor)
+	cfg := Config{
+		Keys:  []string{"Remark"},
+		Limit: 3,
+	}
 
-	var o2 []order
-	cursor = s.paginate(s.db, &o2, pq{
-		Keys:  keys,
-		After: cursor.After,
-	})
-	s.Len(o2, 2)
-	s.assertOnlyBefore(cursor)
+	var p1 []order
+	_, c, _ := New(&cfg).Paginate(s.db, &p1)
+	s.assertIDs(p1, 2, 1, 4)
+	s.assertForwardOnly(c)
 
-	var o3 []order
-	cursor = s.paginate(s.db, &o3, pq{
-		Keys:   keys,
-		Before: cursor.Before,
-	})
-	s.Len(o3, 1)
-	s.Equal(o1, o3)
-	s.assertOnlyAfter(cursor)
+	var p2 []order
+	_, c, _ = New(
+		&cfg,
+		WithAfter(*c.After),
+	).Paginate(s.db, &p2)
+	s.assertIDs(p2, 3)
+	s.assertBackwardOnly(c)
+
+	var p3 []order
+	_, c, _ = New(
+		&cfg,
+		WithBefore(*c.Before),
+	).Paginate(s.db, &p3)
+	s.assertIDs(p3, 2, 1, 4)
+	s.assertForwardOnly(c)
+}
+
+func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
+	s.givenOrders(10)
+
+	var temp []order
+	_, c, _ := New(&Config{
+		Limit: 3,
+	}).Paginate(s.db, &temp)
+
+	anchorCursor := c.After
+
+	var optOrders, builderOrders []order
+	var optCursor, builderCursor cursor.Cursor
+
+	// forward
+
+	opts := []Option{
+		WithKeys("Remark", "CreatedAt", "ID"),
+		WithLimit(3),
+		WithOrder(ASC),
+		WithAfter(*anchorCursor),
+	}
+	_, optCursor, _ = New(opts...).Paginate(s.db, &optOrders)
+
+	p := New()
+	p.SetKeys("Remark", "CreatedAt", "ID")
+	p.SetLimit(3)
+	p.SetOrder(ASC)
+	p.SetAfterCursor(*anchorCursor)
+	_, builderCursor, _ = p.Paginate(s.db, &builderOrders)
+
+	s.Equal(optOrders, builderOrders)
+	s.Equal(optCursor, builderCursor)
+
+	// backward
+
+	opts = []Option{
+		WithKeys("Remark", "CreatedAt", "ID"),
+		WithLimit(3),
+		WithOrder(ASC),
+		WithBefore(*anchorCursor),
+	}
+	_, optCursor, _ = New(opts...).Paginate(s.db, &optOrders)
+
+	p = New()
+	p.SetKeys("Remark", "CreatedAt", "ID")
+	p.SetLimit(3)
+	p.SetOrder(ASC)
+	p.SetBeforeCursor(*anchorCursor)
+	_, builderCursor, _ = p.Paginate(s.db, &builderOrders)
+
+	s.Equal(optOrders, builderOrders)
+	s.Equal(optCursor, builderCursor)
+}
+
+func (s *paginatorSuite) TestPaginateInvalidCursor() {
+	var orders []order
+	_, _, err := New(&Config{
+		After: "invalid cursor",
+	}).Paginate(s.db, &orders)
+	s.Equal(cursor.ErrDecodeInvalidCursor, err)
+}
+
+func (s *paginatorSuite) TestPaginateUnknownKey() {
+	var unknown struct {
+		UnknownKey string
+	}
+	_, _, err := New(&Config{
+		Keys: []string{"ID"},
+	}).Paginate(s.db, &unknown)
+	s.Equal(cursor.ErrDecodeKeyUnknown, err)
+}
+
+/* fixtures */
+
+func (s *paginatorSuite) givenOrders(numOrOrders interface{}) (orders []order) {
+	switch v := numOrOrders.(type) {
+	case int:
+		for i := 0; i < v; i++ {
+			orders = append(orders, order{
+				CreatedAt: time.Now().Add(time.Duration(i) * time.Hour),
+			})
+		}
+	case []order:
+		orders = v
+	default:
+		panic("givenOrders: numOrOrders should be number or orders")
+	}
+	for i := 0; i < len(orders); i++ {
+		if err := s.db.Create(&orders[i]).Error; err != nil {
+			panic(err.Error())
+		}
+	}
+	return
+}
+
+func (s *paginatorSuite) givenItems(order order, numOrItems interface{}) (items []item) {
+	switch v := numOrItems.(type) {
+	case int:
+		for i := 0; i < v; i++ {
+			items = append(items, item{
+				Name:    fmt.Sprintf("item %d", i+1),
+				OrderID: order.ID,
+			})
+		}
+	case []item:
+		items = v
+	default:
+		panic("givenItems: numOrItems should be number or items")
+	}
+	for i := 0; i < len(items); i++ {
+		if err := s.db.Create(&items[i]).Error; err != nil {
+			panic(err.Error())
+		}
+	}
+	return
+}
+
+/* assertions */
+
+func (s *paginatorSuite) assertIDRange(result interface{}, fromID, toID int) {
+	rv := reflect.ValueOf(result)
+	if rv.Kind() != reflect.Slice {
+		panic("assertIDRange: result should be a slice")
+	}
+	s.Equal(
+		int(math.Abs(float64(fromID-toID))+1),
+		rv.Len(),
+	)
+	cur, vector := fromID, 1
+	if fromID > toID {
+		vector = -1
+	}
+	for i := 0; i < rv.Len(); i++ {
+		e := rv.Index(i)
+		if e.Kind() == reflect.Ptr {
+			e = e.Elem()
+		}
+		s.Equal(cur, e.FieldByName("ID").Interface())
+		cur += vector
+	}
+}
+
+func (s *paginatorSuite) assertIDs(result interface{}, ids ...int) {
+	rv := reflect.ValueOf(result)
+	if rv.Kind() != reflect.Slice {
+		panic("assertIDs: result should be a slice")
+	}
+	s.Equal(len(ids), rv.Len())
+
+	for i := 0; i < rv.Len(); i++ {
+		e := rv.Index(i)
+		if e.Kind() == reflect.Ptr {
+			e = e.Elem()
+		}
+		s.Equal(ids[i], e.FieldByName("ID").Interface())
+	}
+}
+
+func (s *paginatorSuite) assertForwardOnly(c cursor.Cursor) {
+	s.NotNil(c.After)
+	s.Nil(c.Before)
+}
+
+func (s *paginatorSuite) assertBackwardOnly(c cursor.Cursor) {
+	s.Nil(c.After)
+	s.NotNil(c.Before)
+}
+
+func (s *paginatorSuite) assertBothDirections(c cursor.Cursor) {
+	s.NotNil(c.After)
+	s.NotNil(c.Before)
+}
+
+func (s *paginatorSuite) assertNoMore(c cursor.Cursor) {
+	s.Nil(c.After)
+	s.Nil(c.Before)
 }
 
 /* util */
 
-func (s *paginatorSuite) paginate(stmt *gorm.DB, out interface{}, q pq) cursor.Cursor {
-	p := q.Paginator()
-	result, err := p.Paginate(stmt, out)
-	if err != nil {
-		s.FailNow(err.Error())
-	}
-	if err := result.Error; err != nil {
-		s.FailNow(err.Error())
-	}
-	return p.GetNextCursor()
-}
-
-// pq stands for paging query
-type pq struct {
-	Keys   []string
-	After  *string
-	Before *string
-	Limit  *int
-	Order  *Order
-}
-
-func (q pq) Paginator() *Paginator {
-	p := New()
-	if q.Keys != nil {
-		p.SetKeys(q.Keys...)
-	}
-	if q.After != nil {
-		p.SetAfterCursor(*q.After)
-	}
-	if q.Before != nil {
-		p.SetBeforeCursor(*q.Before)
-	}
-	if q.Limit != nil {
-		p.SetLimit(*q.Limit)
-	}
-	if q.Order != nil {
-		p.SetOrder(*q.Order)
-	}
-	return p
-}
-
-func pqString(str string) *string {
-	return &str
-}
-
-func pqLimit(limit int) *int {
-	return &limit
-}
-
-func pqOrder(order Order) *Order {
-	return &order
-}
-
-/* order */
-
-func (s *paginatorSuite) givenOrders(n int) []order {
-	orders := make([]order, n)
-	for i := 0; i < n; i++ {
-		orders[i] = order{}
-	}
-	return s.createOrders(orders)
-}
-
-func (s *paginatorSuite) givenPtrOrders(n int) []*order {
-	var result []*order
-	orders := s.givenOrders(n)
-	for i := 0; i < len(orders); i++ {
-		result = append(result, &orders[i])
-	}
-	return result
-}
-
-func (s *paginatorSuite) givenCustomOrders(orders []order) []order {
-	return s.createOrders(orders)
-}
-
-func (s *paginatorSuite) createOrders(orders []order) []order {
-	for i := 0; i < len(orders); i++ {
-		if err := s.db.Create(&orders[i]).Error; err != nil {
-			s.FailNow(err.Error())
-		}
-	}
-	return orders
-}
-
-/* item */
-
-func (s *paginatorSuite) givenItems(orderID int, n int) []item {
-	items := make([]item, n)
-	for i := 0; i < n; i++ {
-		items[i] = item{
-			OrderID: orderID,
-		}
-	}
-	return s.createItems(items)
-}
-
-func (s *paginatorSuite) createItems(items []item) []item {
-	for i := 0; i < len(items); i++ {
-		if err := s.db.Create(&items[i]).Error; err != nil {
-			s.FailNow(err.Error())
-		}
-	}
-	return items
-}
-
-/* assert */
-
-func (s *paginatorSuite) assertOnlyAfter(cursor cursor.Cursor) {
-	s.NotNil(cursor.After)
-	s.Nil(cursor.Before)
-}
-
-func (s *paginatorSuite) assertOnlyBefore(cursor cursor.Cursor) {
-	s.Nil(cursor.After)
-	s.NotNil(cursor.Before)
-}
-
-func (s *paginatorSuite) assertBoth(cursor cursor.Cursor) {
-	s.NotNil(cursor.After)
-	s.NotNil(cursor.Before)
-}
-
-func (s *paginatorSuite) assertOrders(expected []order, head, tail int, got []order) {
-	s.Equal(expected[head].ID, got[first(got)].ID)
-	s.Equal(expected[tail].ID, got[last(got)].ID)
-}
-
-func (s *paginatorSuite) assertPtrOrders(expected []*order, head, tail int, got []*order) {
-	s.Equal(expected[head].ID, got[first(got)].ID)
-	s.Equal(expected[tail].ID, got[last(got)].ID)
-}
-
-func (s *paginatorSuite) assertItems(expected []item, head, tail int, got []item) {
-	s.Equal(expected[head].ID, got[first(got)].ID)
-	s.Equal(expected[tail].ID, got[last(got)].ID)
-}
-
-func first(values interface{}) int {
-	return 0
-}
-
-func last(values interface{}) int {
-	return reflect.ValueOf(values).Len() - 1
+func ptrStr(v string) *string {
+	return &v
 }
