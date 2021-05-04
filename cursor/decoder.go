@@ -35,7 +35,7 @@ type Decoder struct {
 }
 
 // Decode decodes cursor into values
-func (d *Decoder) Decode(cursor string) (values []interface{}, err error) {
+func (d *Decoder) Decode(cursor string) (fields []interface{}, err error) {
 	b, err := base64.StdEncoding.DecodeString(cursor)
 	// ensure cursor content is json
 	if err != nil || !json.Valid(b) {
@@ -53,7 +53,7 @@ func (d *Decoder) Decode(cursor string) (values []interface{}, err error) {
 		if err := jd.Decode(&v); err != nil {
 			return nil, ErrInvalidCursor
 		}
-		values = append(values, reflect.ValueOf(v).Elem().Interface())
+		fields = append(fields, reflect.ValueOf(v).Elem().Interface())
 	}
 	// cursor must be a valid json after previous checks,
 	// so no need to check whether "]" is the last token
