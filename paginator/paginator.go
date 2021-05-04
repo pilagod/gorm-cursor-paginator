@@ -102,25 +102,26 @@ func (p *Paginator) Paginate(db *gorm.DB, out interface{}) (result *gorm.DB, c c
 
 /* private */
 
-func (p *Paginator) validate(out interface{}) (err error) {
+func (p *Paginator) validate(out interface{}) error {
 	if len(p.rules) == 0 {
-		return ErrEmptyRule
+		return ErrNoRule
+	}
+	if p.limit < 0 {
+		return ErrInvalidLimit
+	}
+	if p.order != ASC && p.order != DESC {
+		return ErrInvalidOrder
 	}
 	for _, rule := range p.rules {
-		if err = rule.Validate(); err != nil {
-			return
+		// allow empty order for rule
+		if rule.Order != "" && rule.Order != ASC && rule.Order != DESC {
+			return ErrInvalidOrder
 		}
 		if _, ok := util.ReflectType(out).FieldByName(rule.Key); !ok {
 			return ErrInvalidModel
 		}
 	}
-	if p.limit < 0 {
-		return ErrInvalidLimit
-	}
-	if err = p.order.Validate(false); err != nil {
-		return
-	}
-	return
+	return nil
 }
 
 func (p *Paginator) setup(db *gorm.DB, out interface{}) {

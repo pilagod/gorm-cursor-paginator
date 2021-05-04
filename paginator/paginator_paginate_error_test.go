@@ -4,12 +4,12 @@ import (
 	"github.com/pilagod/gorm-cursor-paginator/cursor"
 )
 
-func (s *paginatorSuite) TestPaginateEmptyRule() {
+func (s *paginatorSuite) TestPaginateNoRule() {
 	var orders []order
 	_, _, err := New(&Config{
 		Rules: []Rule{},
 	}).Paginate(s.db, &orders)
-	s.Equal(ErrEmptyRule, err)
+	s.Equal(ErrNoRule, err)
 }
 
 func (s *paginatorSuite) TestPaginateInvalidLimit() {
@@ -49,7 +49,7 @@ func (s *paginatorSuite) TestPaginateInvalidCursor() {
 	s.Equal(cursor.ErrDecodeInvalidCursor, err)
 }
 
-func (s *paginatorSuite) TestPaginateUnknownKey() {
+func (s *paginatorSuite) TestPaginateInvalidModel() {
 	var unknown struct {
 		UnknownKey string
 	}
