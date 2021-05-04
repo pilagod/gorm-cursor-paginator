@@ -15,31 +15,31 @@ type decoderSuite struct {
 	suite.Suite
 }
 
-func (s *decoderSuite) TestKeyUnknown() {
+func (s *decoderSuite) TestModelKeyNotMatched() {
 	_, err := NewDecoder(struct{}{}, "Hello")
-	s.Equal(ErrDecodeUnknownKey, err)
+	s.Equal(ErrInvalidModel, err)
 }
 
-func (s *decoderSuite) TestInvalidModel() {
+func (s *decoderSuite) TestNonStructModel() {
 	_, err := NewDecoder(123, "")
-	s.Equal(ErrDecodeInvalidModel, err)
+	s.Equal(ErrInvalidModel, err)
 }
 
 func (s *decoderSuite) TestInvalidCursorFormat() {
 	d, _ := NewDecoder(struct{ Value string }{}, "Value")
 
 	_, err := d.Decode("123")
-	s.Equal(ErrDecodeInvalidCursor, err)
+	s.Equal(ErrInvalidCursor, err)
 
 	var c string
 
 	c = base64.StdEncoding.EncodeToString([]byte(`{"value": "123"}`))
 	_, err = d.Decode(c)
-	s.Equal(ErrDecodeInvalidCursor, err)
+	s.Equal(ErrInvalidCursor, err)
 
 	c = base64.StdEncoding.EncodeToString([]byte(`["123"}`))
 	_, err = d.Decode(c)
-	s.Equal(ErrDecodeInvalidCursor, err)
+	s.Equal(ErrInvalidCursor, err)
 }
 
 func (s *decoderSuite) TestInvalidCursorType() {
@@ -48,5 +48,5 @@ func (s *decoderSuite) TestInvalidCursorType() {
 		Value: 123,
 	})
 	_, err := d.Decode(c)
-	s.Equal(ErrDecodeInvalidCursor, err)
+	s.Equal(ErrInvalidCursor, err)
 }

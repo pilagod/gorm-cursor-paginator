@@ -15,6 +15,13 @@ type encodingSuite struct {
 	suite.Suite
 }
 
+/* bool */
+
+type boolModel struct {
+	Value    bool
+	ValuePtr *bool
+}
+
 func (s *encodingSuite) TestBool() {
 	c, _ := s.encodeValue(boolModel{Value: true})
 	v, _ := s.decodeValue(boolModel{}, c)
@@ -26,6 +33,13 @@ func (s *encodingSuite) TestBoolPtr() {
 	c, _ := s.encodeValuePtr(boolModel{ValuePtr: &b})
 	v, _ := s.decodeValuePtr(boolModel{}, c)
 	s.Equal(true, v)
+}
+
+/* int */
+
+type intModel struct {
+	Value    int
+	ValuePtr *int
 }
 
 func (s *encodingSuite) TestInt() {
@@ -41,6 +55,13 @@ func (s *encodingSuite) TestIntPtr() {
 	s.Equal(int(123), v)
 }
 
+/* uint */
+
+type uintModel struct {
+	Value    uint
+	ValuePtr *uint
+}
+
 func (s *encodingSuite) TestUint() {
 	c, _ := s.encodeValue(uintModel{Value: 123})
 	v, _ := s.decodeValue(uintModel{}, c)
@@ -52,6 +73,12 @@ func (s *encodingSuite) TestUintPtr() {
 	c, _ := s.encodeValuePtr(uintModel{ValuePtr: &ui})
 	v, _ := s.decodeValue(uintModel{}, c)
 	s.Equal(uint(123), v)
+}
+
+/* float */
+type floatModel struct {
+	Value    float64
+	ValuePtr *float64
 }
 
 func (s *encodingSuite) TestFloat() {
@@ -67,6 +94,13 @@ func (s *encodingSuite) TestFloatPtr() {
 	s.Equal(float64(123.45), v)
 }
 
+/* string */
+
+type stringModel struct {
+	Value    string
+	ValuePtr *string
+}
+
 func (s *encodingSuite) TestString() {
 	c, _ := s.encodeValue(stringModel{Value: "hello"})
 	v, _ := s.decodeValue(stringModel{}, c)
@@ -78,6 +112,13 @@ func (s *encodingSuite) TestStringPtr() {
 	c, _ := s.encodeValuePtr(stringModel{ValuePtr: &str})
 	v, _ := s.decodeValuePtr(stringModel{}, c)
 	s.Equal("hello", v)
+}
+
+/* time */
+
+type timeModel struct {
+	Value    time.Time
+	ValuePtr *time.Time
 }
 
 func (s *encodingSuite) TestTime() {
@@ -94,6 +135,17 @@ func (s *encodingSuite) TestTimePtr() {
 	s.Equal(t.Second(), v.(time.Time).Second())
 }
 
+/* struct */
+
+type structModel struct {
+	Value    structValue
+	ValuePtr *structValue
+}
+
+type structValue struct {
+	Value []byte
+}
+
 func (s *encodingSuite) TestStruct() {
 	c, _ := s.encodeValue(structModel{
 		Value: structValue{Value: []byte("123")},
@@ -108,6 +160,8 @@ func (s *encodingSuite) TestStructPtr() {
 	v, _ := s.decodeValuePtr(structModel{}, c)
 	s.Equal(sv, v)
 }
+
+/* multiple */
 
 func (s *encodingSuite) TestMultipleFields() {
 	type multipleModel struct {

@@ -46,7 +46,7 @@ func (s *paginatorSuite) TestPaginateInvalidCursor() {
 	_, _, err := New(
 		WithAfter("invalid cursor"),
 	).Paginate(s.db, &orders)
-	s.Equal(cursor.ErrDecodeInvalidCursor, err)
+	s.Equal(cursor.ErrInvalidCursor, err)
 }
 
 func (s *paginatorSuite) TestPaginateInvalidModel() {

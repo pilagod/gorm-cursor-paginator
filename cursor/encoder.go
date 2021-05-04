@@ -32,13 +32,13 @@ func (e *Encoder) marshalJSON(model interface{}) ([]byte, error) {
 	for i, key := range e.keys {
 		v := util.ReflectValue(rv.FieldByName(key))
 		if !v.IsValid() {
-			return nil, ErrEncodeInvalidModel
+			return nil, ErrInvalidModel
 		}
 		fs[i] = v.Interface()
 	}
 	result, err := json.Marshal(fs)
 	if err != nil {
-		return nil, ErrEncodeInvalidModel
+		return nil, ErrInvalidModel
 	}
 	return result, nil
 }
