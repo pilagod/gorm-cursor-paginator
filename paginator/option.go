@@ -23,11 +23,11 @@ type Config struct {
 
 // Apply applies config to paginator
 func (c *Config) Apply(p *Paginator) {
-	if len(c.Rules) != 0 {
+	if c.Rules != nil {
 		p.SetRules(c.Rules...)
 	}
 	// only set keys when no rules presented
-	if len(c.Rules) == 0 && len(c.Keys) != 0 {
+	if c.Rules == nil && c.Keys != nil {
 		p.SetKeys(c.Keys...)
 	}
 	if c.Limit != 0 {
