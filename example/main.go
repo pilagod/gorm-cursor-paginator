@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/pilagod/gorm-cursor-paginator/paginator"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"github.com/pilagod/gorm-cursor-paginator/paginator"
 )
 
 // Product for product model

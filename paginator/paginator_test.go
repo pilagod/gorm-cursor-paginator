@@ -21,7 +21,7 @@ func TestPaginator(t *testing.T) {
 
 type order struct {
 	ID        int       `gorm:"primaryKey"`
-	Remark    *string   `gorm:"varchar(30)"`
+	Remark    *string   `gorm:"type:varchar(30)"`
 	CreatedAt time.Time `gorm:"type:timestamp;not null"`
 }
 

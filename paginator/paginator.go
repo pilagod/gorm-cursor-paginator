@@ -7,8 +7,10 @@ import (
 	"strings"
 
 	"github.com/iancoleman/strcase"
-	"github.com/pilagod/gorm-cursor-paginator/cursor"
 	"gorm.io/gorm"
+
+	"github.com/pilagod/gorm-cursor-paginator/cursor"
+	"github.com/pilagod/gorm-cursor-paginator/internal/util"
 )
 
 // New creates paginator
@@ -28,6 +30,7 @@ type Paginator struct {
 	order  Order
 }
 
+// SetRules sets paging rules
 func (p *Paginator) SetRules(rules ...Rule) {
 	p.rules = make([]Rule, len(rules))
 	copy(p.rules, rules)
@@ -76,8 +79,10 @@ func (p *Paginator) Paginate(db *gorm.DB, out interface{}) (result *gorm.DB, c c
 	if err != nil {
 		return
 	}
-	result = p.appendPagingQuery(dbCtx, fields).Find(out)
-	// out must be a pointer or gorm will panic above
+	if result = p.appendPagingQuery(dbCtx, fields).Find(out); result.Error != nil {
+		return
+	}
+	// out must be an addressable type (a.k.a pointer) or gorm will panic above
 	elems := reflect.ValueOf(out).Elem()
 	// only encode next cursor when elems is not empty slice
 	if elems.Kind() == reflect.Slice && elems.Len() > 0 {
@@ -113,22 +118,45 @@ func (p *Paginator) validate() (err error) {
 }
 
 func (p *Paginator) setup(db *gorm.DB, out interface{}) {
-	var outTable string
+	var sqlTable string
 	for i := range p.rules {
 		if p.rules[i].SQLRepr == "" {
-			if outTable == "" {
+			if sqlTable == "" {
 				// https://stackoverflow.com/questions/51999441/how-to-get-a-table-name-from-a-model-in-gorm
 				stmt := &gorm.Statement{DB: db}
 				stmt.Parse(out)
-				outTable = stmt.Schema.Table
+				sqlTable = stmt.Schema.Table
 			}
-			// TODO: get gorm column tag
-			p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", outTable, strcase.ToSnake(p.rules[i].Key))
+			sqlKey, _ := p.parseSQLKey(out, p.rules[i].Key)
+			p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", sqlTable, sqlKey)
 		}
 		if p.rules[i].Order == "" {
 			p.rules[i].Order = p.order
 		}
 	}
+}
+
+func (p *Paginator) parseSQLKey(out interface{}, key string) (string, error) {
+	f, _ := util.ReflectType(out).FieldByName(key)
+	var tag string
+	for _, tag = range strings.Split(string(f.Tag), " ") {
+		if strings.HasPrefix(tag, "gorm:") {
+			break
+		}
+	}
+	if tag == "" {
+		return strcase.ToSnake(key), nil
+	}
+	opts := strings.Split(
+		strings.Trim(tag[len("gorm:"):], "\""),
+		";",
+	)
+	for _, opt := range opts {
+		if strings.HasPrefix(opt, "column:") {
+			return opt[len("column:"):], nil
+		}
+	}
+	return strcase.ToSnake(key), nil
 }
 
 func (p *Paginator) decodeCursor(out interface{}) ([]interface{}, error) {
