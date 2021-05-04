@@ -3,11 +3,6 @@ package cursor
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
-)
-
-var (
-	ErrEncodeInvalidModel = errors.New("invalid model for encoding")
 )
 
 // NewEncoder creates cursor encoder

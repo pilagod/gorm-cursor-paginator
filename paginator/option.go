@@ -13,6 +13,7 @@ type Option interface {
 
 // Config for paginator
 type Config struct {
+	Rules  []Rule
 	Keys   []string
 	Limit  int
 	Order  Order
@@ -22,20 +23,31 @@ type Config struct {
 
 // Apply applies config to paginator
 func (c *Config) Apply(p *Paginator) {
-	if len(c.Keys) != 0 {
-		p.keys = c.Keys
+	if len(c.Rules) != 0 {
+		p.SetRules(c.Rules...)
 	}
-	if c.Limit > 0 {
-		p.limit = c.Limit
+	// only set keys when no rules presented
+	if len(c.Rules) == 0 && len(c.Keys) != 0 {
+		p.SetKeys(c.Keys...)
+	}
+	if c.Limit != 0 {
+		p.SetLimit(c.Limit)
 	}
 	if c.Order != "" {
-		p.order = c.Order
+		p.SetOrder(c.Order)
 	}
 	if c.After != "" {
-		p.cursor.After = &c.After
+		p.SetAfterCursor(c.After)
 	}
 	if c.Before != "" {
-		p.cursor.Before = &c.Before
+		p.SetBeforeCursor(c.Before)
+	}
+}
+
+// WithRules configures rules for paginator
+func WithRules(rules ...Rule) Option {
+	return &Config{
+		Rules: rules,
 	}
 }
 

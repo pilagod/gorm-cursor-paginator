@@ -4,14 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"reflect"
-)
-
-var (
-	ErrDecodeInvalidCursor = errors.New("invalid cursor for decoding")
-	ErrDecodeInvalidModel  = errors.New("invalid model for decoding")
-	ErrDecodeKeyUnknown    = errors.New("unknown key on decoded model")
 )
 
 // NewDecoder creates cursor decoder for model
