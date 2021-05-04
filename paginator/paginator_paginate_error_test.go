@@ -50,18 +50,3 @@ func (s *paginatorSuite) TestPaginateUnknownKey() {
 	).Paginate(s.db, &unknown)
 	s.Equal(ErrInvalidModel, err)
 }
-
-func (s *paginatorSuite) TestPaginateUnknownKeyForDecoding() {
-	var unknown struct {
-		UnknownKey string
-	}
-	_, _, err := New(
-		WithRules([]Rule{
-			{
-				Key:     "ID",
-				SQLRepr: "id",
-			},
-		}...),
-	).Paginate(s.db, &unknown)
-	s.Equal(cursor.ErrDecodeUnknownKey, err)
-}
