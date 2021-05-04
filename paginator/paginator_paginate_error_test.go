@@ -35,9 +35,9 @@ func (s *paginatorSuite) TestPaginateInvalidOrderOnRules() {
 
 func (s *paginatorSuite) TestPaginateInvalidCursor() {
 	var orders []order
-	_, _, err := New(&Config{
-		After: "invalid cursor",
-	}).Paginate(s.db, &orders)
+	_, _, err := New(
+		WithAfter("invalid cursor"),
+	).Paginate(s.db, &orders)
 	s.Equal(cursor.ErrDecodeInvalidCursor, err)
 }
 
@@ -45,8 +45,23 @@ func (s *paginatorSuite) TestPaginateUnknownKey() {
 	var unknown struct {
 		UnknownKey string
 	}
-	_, _, err := New(&Config{
-		Keys: []string{"ID"},
-	}).Paginate(s.db, &unknown)
-	s.Equal(cursor.ErrDecodeKeyUnknown, err)
+	_, _, err := New(
+		WithKeys("ID"),
+	).Paginate(s.db, &unknown)
+	s.Equal(ErrInvalidModel, err)
+}
+
+func (s *paginatorSuite) TestPaginateUnknownKeyForDecoding() {
+	var unknown struct {
+		UnknownKey string
+	}
+	_, _, err := New(
+		WithRules([]Rule{
+			{
+				Key:     "ID",
+				SQLRepr: "id",
+			},
+		}...),
+	).Paginate(s.db, &unknown)
+	s.Equal(cursor.ErrDecodeUnknownKey, err)
 }

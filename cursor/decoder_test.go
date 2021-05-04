@@ -17,7 +17,7 @@ type decoderSuite struct {
 
 func (s *decoderSuite) TestKeyUnknown() {
 	_, err := NewDecoder(struct{}{}, "Hello")
-	s.Equal(ErrDecodeKeyUnknown, err)
+	s.Equal(ErrDecodeUnknownKey, err)
 }
 
 func (s *decoderSuite) TestInvalidModel() {

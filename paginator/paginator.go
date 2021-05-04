@@ -73,7 +73,9 @@ func (p *Paginator) Paginate(db *gorm.DB, out interface{}) (result *gorm.DB, c c
 		return
 	}
 	dbCtx := db.WithContext(context.Background())
-	p.setup(dbCtx, out)
+	if err = p.setup(dbCtx, out); err != nil {
+		return
+	}
 	// decode cursor
 	fields, err := p.decodeCursor(out)
 	if err != nil {
@@ -117,7 +119,7 @@ func (p *Paginator) validate() (err error) {
 	return
 }
 
-func (p *Paginator) setup(db *gorm.DB, out interface{}) {
+func (p *Paginator) setup(db *gorm.DB, out interface{}) error {
 	var sqlTable string
 	for i := range p.rules {
 		if p.rules[i].SQLRepr == "" {
@@ -127,17 +129,24 @@ func (p *Paginator) setup(db *gorm.DB, out interface{}) {
 				stmt.Parse(out)
 				sqlTable = stmt.Schema.Table
 			}
-			sqlKey, _ := p.parseSQLKey(out, p.rules[i].Key)
+			sqlKey, err := p.parseSQLKey(out, p.rules[i].Key)
+			if err != nil {
+				return err
+			}
 			p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", sqlTable, sqlKey)
 		}
 		if p.rules[i].Order == "" {
 			p.rules[i].Order = p.order
 		}
 	}
+	return nil
 }
 
 func (p *Paginator) parseSQLKey(out interface{}, key string) (string, error) {
-	f, _ := util.ReflectType(out).FieldByName(key)
+	f, ok := util.ReflectType(out).FieldByName(key)
+	if !ok {
+		return "", ErrInvalidModel
+	}
 	var tag string
 	for _, tag = range strings.Split(string(f.Tag), " ") {
 		if strings.HasPrefix(tag, "gorm:") {

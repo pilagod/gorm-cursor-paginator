@@ -12,10 +12,12 @@ func NewEncoder(keys ...string) *Encoder {
 	return &Encoder{keys}
 }
 
+// Encoder cursor encoder
 type Encoder struct {
 	keys []string
 }
 
+// Encode encodes model into cursor
 func (e *Encoder) Encode(model interface{}) (string, error) {
 	b, err := e.marshalJSON(model)
 	if err != nil {

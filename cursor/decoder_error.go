@@ -6,5 +6,5 @@ import "errors"
 var (
 	ErrDecodeInvalidCursor = errors.New("invalid cursor for decoding")
 	ErrDecodeInvalidModel  = errors.New("invalid model for decoding")
-	ErrDecodeKeyUnknown    = errors.New("unknown key on decoded model")
+	ErrDecodeUnknownKey    = errors.New("unknown key on decoded model")
 )

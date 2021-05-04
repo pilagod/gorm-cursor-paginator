@@ -247,7 +247,9 @@ func (s *paginatorSuite) TestPaginateShouldUseGormColumnTag() {
 	}
 
 	var orders []order
-	result, _, _ := New(WithKeys("Description")).Paginate(s.db, &orders)
+	result, _, _ := New(
+		WithKeys("Description"),
+	).Paginate(s.db, &orders)
 	s.Nil(result.Error)
 	s.assertIDs(orders, 1, 2, 3)
 }

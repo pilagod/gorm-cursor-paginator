@@ -19,7 +19,7 @@ func NewDecoder(model interface{}, keys ...string) (*Decoder, error) {
 	// validate keys
 	for _, key := range keys {
 		if _, ok := modelType.FieldByName(key); !ok {
-			return nil, ErrDecodeKeyUnknown
+			return nil, ErrDecodeUnknownKey
 		}
 	}
 	return &Decoder{
@@ -28,12 +28,14 @@ func NewDecoder(model interface{}, keys ...string) (*Decoder, error) {
 	}, nil
 }
 
+// Decoder cursor decoder
 type Decoder struct {
 	modelType reflect.Type
 	keys      []string
 }
 
-func (d *Decoder) Decode(cursor string) (fields []interface{}, err error) {
+// Decode decodes cursor into values
+func (d *Decoder) Decode(cursor string) (values []interface{}, err error) {
 	b, err := base64.StdEncoding.DecodeString(cursor)
 	// ensure cursor content is json
 	if err != nil || !json.Valid(b) {
@@ -51,7 +53,7 @@ func (d *Decoder) Decode(cursor string) (fields []interface{}, err error) {
 		if err := jd.Decode(&v); err != nil {
 			return nil, ErrDecodeInvalidCursor
 		}
-		fields = append(fields, reflect.ValueOf(v).Elem().Interface())
+		values = append(values, reflect.ValueOf(v).Elem().Interface())
 	}
 	// cursor must be a valid json after previous checks,
 	// so no need to check "]" is the last token
