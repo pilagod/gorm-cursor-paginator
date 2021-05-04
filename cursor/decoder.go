@@ -5,11 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"reflect"
+
+	"github.com/pilagod/gorm-cursor-paginator/internal/util"
 )
 
 // NewDecoder creates cursor decoder for model
 func NewDecoder(model interface{}, keys ...string) (*Decoder, error) {
-	modelType := reflectType(model)
+	modelType := util.ReflectType(model)
 	// model must be a struct
 	if modelType.Kind() != reflect.Struct {
 		return nil, ErrDecodeInvalidModel
@@ -45,7 +47,7 @@ func (d *Decoder) Decode(cursor string) (fields []interface{}, err error) {
 	for _, key := range d.keys {
 		// key is already validated when decoder is constructed
 		f, _ := d.modelType.FieldByName(key)
-		v := reflect.New(reflectType(f.Type)).Interface()
+		v := reflect.New(util.ReflectType(f.Type)).Interface()
 		if err := jd.Decode(&v); err != nil {
 			return nil, ErrDecodeInvalidCursor
 		}

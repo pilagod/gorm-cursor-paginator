@@ -3,6 +3,8 @@ package cursor
 import (
 	"encoding/base64"
 	"encoding/json"
+
+	"github.com/pilagod/gorm-cursor-paginator/internal/util"
 )
 
 // NewEncoder creates cursor encoder
@@ -23,10 +25,10 @@ func (e *Encoder) Encode(model interface{}) (string, error) {
 }
 
 func (e *Encoder) marshalJSON(model interface{}) ([]byte, error) {
-	rv := reflectValue(model)
+	rv := util.ReflectValue(model)
 	fs := make([]interface{}, len(e.keys))
 	for i, key := range e.keys {
-		v := reflectValue(rv.FieldByName(key))
+		v := util.ReflectValue(rv.FieldByName(key))
 		if !v.IsValid() {
 			return nil, ErrEncodeInvalidModel
 		}
