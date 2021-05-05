@@ -180,12 +180,11 @@ func (s *encodingSuite) TestMultipleFields() {
 		Name:      "Hello",
 		CreatedAt: &t,
 	})
-	d, _ := NewDecoder(multipleModel{}, cfs...)
-	fs, _ := d.Decode(c)
-	s.Len(fs, 3)
-	s.Equal(123, fs[0])
-	s.Equal("Hello", fs[1])
-	s.Equal(t.Second(), fs[2].(time.Time).Second())
+	fields, _ := NewDecoder(cfs...).Decode(c, multipleModel{})
+	s.Len(fields, 3)
+	s.Equal(123, fields[0])
+	s.Equal("Hello", fields[1])
+	s.Equal(t.Second(), fields[2].(time.Time).Second())
 }
 
 func (s *encodingSuite) encodeValue(v interface{}) (string, error) {
@@ -197,31 +196,23 @@ func (s *encodingSuite) encodeValuePtr(v interface{}) (string, error) {
 }
 
 func (s *encodingSuite) decodeValue(m interface{}, c string) (interface{}, error) {
-	d, err := NewDecoder(m, "Value")
+	fields, err := NewDecoder("Value").Decode(c, m)
 	if err != nil {
 		return nil, err
 	}
-	fs, err := d.Decode(c)
-	if err != nil {
-		return nil, err
+	if len(fields) != 1 {
+		s.FailNow("invalid value model: %v, fields %v", m, fields)
 	}
-	if len(fs) != 1 {
-		s.FailNow("invalid value model: %v, fields %v", m, fs)
-	}
-	return fs[0], nil
+	return fields[0], nil
 }
 
 func (s *encodingSuite) decodeValuePtr(m interface{}, c string) (interface{}, error) {
-	d, err := NewDecoder(m, "ValuePtr")
+	fields, err := NewDecoder("ValuePtr").Decode(c, m)
 	if err != nil {
 		return nil, err
 	}
-	fs, err := d.Decode(c)
-	if err != nil {
-		return nil, err
+	if len(fields) != 1 {
+		s.FailNow("invalid value model: %v, fields %v", m, fields)
 	}
-	if len(fs) != 1 {
-		s.FailNow("invalid value model: %v, fields %v", m, fs)
-	}
-	return fs[0], nil
+	return fields[0], nil
 }

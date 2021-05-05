@@ -10,32 +10,20 @@ import (
 )
 
 // NewDecoder creates cursor decoder for model
-func NewDecoder(model interface{}, keys ...string) (*Decoder, error) {
-	modelType := util.ReflectType(model)
-	// model must be a struct
-	if modelType.Kind() != reflect.Struct {
-		return nil, ErrInvalidModel
-	}
-	// validate keys
-	for _, key := range keys {
-		if _, ok := modelType.FieldByName(key); !ok {
-			return nil, ErrInvalidModel
-		}
-	}
-	return &Decoder{
-		modelType: modelType,
-		keys:      keys,
-	}, nil
+func NewDecoder(keys ...string) *Decoder {
+	return &Decoder{keys}
 }
 
 // Decoder cursor decoder
 type Decoder struct {
-	modelType reflect.Type
-	keys      []string
+	keys []string
 }
 
 // Decode decodes cursor into values
-func (d *Decoder) Decode(cursor string) (fields []interface{}, err error) {
+func (d *Decoder) Decode(cursor string, model interface{}) (fields []interface{}, err error) {
+	if err = d.validate(model); err != nil {
+		return
+	}
 	b, err := base64.StdEncoding.DecodeString(cursor)
 	// ensure cursor content is json
 	if err != nil || !json.Valid(b) {
@@ -47,8 +35,8 @@ func (d *Decoder) Decode(cursor string) (fields []interface{}, err error) {
 		return nil, ErrInvalidCursor
 	}
 	for _, key := range d.keys {
-		// key is already validated when decoder is constructed
-		f, _ := d.modelType.FieldByName(key)
+		// key is already validated at validation phase
+		f, _ := util.ReflectType(model).FieldByName(key)
 		v := reflect.New(util.ReflectType(f.Type)).Interface()
 		if err := jd.Decode(&v); err != nil {
 			return nil, ErrInvalidCursor
@@ -58,4 +46,18 @@ func (d *Decoder) Decode(cursor string) (fields []interface{}, err error) {
 	// cursor must be a valid json after previous checks,
 	// so no need to check whether "]" is the last token
 	return
+}
+
+func (d *Decoder) validate(model interface{}) error {
+	modelType := util.ReflectType(model)
+	// model must be a struct
+	if modelType.Kind() != reflect.Struct {
+		return ErrInvalidModel
+	}
+	for _, key := range d.keys {
+		if _, ok := modelType.FieldByName(key); !ok {
+			return ErrInvalidModel
+		}
+	}
+	return nil
 }

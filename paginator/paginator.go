@@ -159,15 +159,11 @@ func (p *Paginator) parseSQLKey(dest interface{}, key string) string {
 }
 
 func (p *Paginator) decodeCursor(dest interface{}) ([]interface{}, error) {
-	decoder, err := cursor.NewDecoder(dest, p.getKeys()...)
-	if err != nil {
-		return nil, err
-	}
 	if p.isForward() {
-		return decoder.Decode(*p.cursor.After)
+		return cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.After, dest)
 	}
 	if p.isBackward() {
-		return decoder.Decode(*p.cursor.Before)
+		return cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.Before, dest)
 	}
 	return nil, nil
 }
