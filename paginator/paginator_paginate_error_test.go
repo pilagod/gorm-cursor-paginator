@@ -4,24 +4,32 @@ import (
 	"github.com/pilagod/gorm-cursor-paginator/cursor"
 )
 
+func (s *paginatorSuite) TestPaginateNoRule() {
+	var orders []order
+	_, _, err := New(&Config{
+		Rules: []Rule{},
+	}).Paginate(s.db, &orders)
+	s.Equal(ErrNoRule, err)
+}
+
 func (s *paginatorSuite) TestPaginateInvalidLimit() {
-	var placeholder interface{}
+	var orders []order
 	_, _, err := New(&Config{
 		Limit: -1,
-	}).Paginate(s.db, &placeholder)
+	}).Paginate(s.db, &orders)
 	s.Equal(ErrInvalidLimit, err)
 }
 
 func (s *paginatorSuite) TestPaginateInvalidOrder() {
-	var placeholder interface{}
+	var orders []order
 	_, _, err := New(&Config{
 		Order: "123",
-	}).Paginate(s.db, &placeholder)
+	}).Paginate(s.db, &orders)
 	s.Equal(ErrInvalidOrder, err)
 }
 
 func (s *paginatorSuite) TestPaginateInvalidOrderOnRules() {
-	var placeholder interface{}
+	var orders []order
 	_, _, err := New(&Config{
 		Rules: []Rule{
 			{
@@ -29,24 +37,24 @@ func (s *paginatorSuite) TestPaginateInvalidOrderOnRules() {
 				Order: "123",
 			},
 		},
-	}).Paginate(s.db, &placeholder)
+	}).Paginate(s.db, &orders)
 	s.Equal(ErrInvalidOrder, err)
 }
 
 func (s *paginatorSuite) TestPaginateInvalidCursor() {
 	var orders []order
-	_, _, err := New(&Config{
-		After: "invalid cursor",
-	}).Paginate(s.db, &orders)
-	s.Equal(cursor.ErrDecodeInvalidCursor, err)
+	_, _, err := New(
+		WithAfter("invalid cursor"),
+	).Paginate(s.db, &orders)
+	s.Equal(cursor.ErrInvalidCursor, err)
 }
 
-func (s *paginatorSuite) TestPaginateUnknownKey() {
+func (s *paginatorSuite) TestPaginateInvalidModel() {
 	var unknown struct {
 		UnknownKey string
 	}
-	_, _, err := New(&Config{
-		Keys: []string{"ID"},
-	}).Paginate(s.db, &unknown)
-	s.Equal(cursor.ErrDecodeKeyUnknown, err)
+	_, _, err := New(
+		WithKeys("ID"),
+	).Paginate(s.db, &unknown)
+	s.Equal(ErrInvalidModel, err)
 }

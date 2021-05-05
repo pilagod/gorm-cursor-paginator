@@ -1,5 +1,7 @@
 package paginator
 
+import "github.com/pilagod/gorm-cursor-paginator/internal/util"
+
 // Rule for paginator
 type Rule struct {
 	Key     string
@@ -7,10 +9,14 @@ type Rule struct {
 	SQLRepr string
 }
 
-// Validate validates rule
-func (r *Rule) Validate() error {
-	if err := r.Order.Validate(true); err != nil {
-		return err
+func (r *Rule) validate(dest interface{}) (err error) {
+	if _, ok := util.ReflectType(dest).FieldByName(r.Key); !ok {
+		return ErrInvalidModel
+	}
+	if r.Order != "" {
+		if err = r.Order.validate(); err != nil {
+			return
+		}
 	}
 	return nil
 }

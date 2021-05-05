@@ -1,10 +1,11 @@
-package cursor
+package util
 
 import (
 	"reflect"
 )
 
-func reflectValue(v interface{}) reflect.Value {
+// ReflectValue returns reflect value underlying given value, unwrapping pointer and slice
+func ReflectValue(v interface{}) reflect.Value {
 	rv, ok := v.(reflect.Value)
 	if !ok {
 		rv = reflect.ValueOf(v)
@@ -15,7 +16,8 @@ func reflectValue(v interface{}) reflect.Value {
 	return rv
 }
 
-func reflectType(v interface{}) reflect.Type {
+// ReflectType returns reflect type underlying given value, unwrapping pointer and slice
+func ReflectType(v interface{}) reflect.Type {
 	var rt reflect.Type
 	if rvt, ok := v.(reflect.Type); ok {
 		rt = rvt

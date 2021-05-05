@@ -7,8 +7,10 @@ import (
 	"strings"
 
 	"github.com/iancoleman/strcase"
-	"github.com/pilagod/gorm-cursor-paginator/cursor"
 	"gorm.io/gorm"
+
+	"github.com/pilagod/gorm-cursor-paginator/cursor"
+	"github.com/pilagod/gorm-cursor-paginator/internal/util"
 )
 
 // New creates paginator
@@ -28,6 +30,7 @@ type Paginator struct {
 	order  Order
 }
 
+// SetRules sets paging rules
 func (p *Paginator) SetRules(rules ...Rule) {
 	p.rules = make([]Rule, len(rules))
 	copy(p.rules, rules)
@@ -65,20 +68,21 @@ func (p *Paginator) SetBeforeCursor(beforeCursor string) {
 }
 
 // Paginate paginates data
-func (p *Paginator) Paginate(db *gorm.DB, out interface{}) (result *gorm.DB, c cursor.Cursor, err error) {
-	if err = p.validate(); err != nil {
+func (p *Paginator) Paginate(db *gorm.DB, dest interface{}) (result *gorm.DB, c cursor.Cursor, err error) {
+	if err = p.validate(dest); err != nil {
 		return
 	}
 	dbCtx := db.WithContext(context.Background())
-	p.setup(dbCtx, out)
-	// decode cursor
-	fields, err := p.decodeCursor(out)
+	p.setup(dbCtx, dest)
+	fields, err := p.decodeCursor(dest)
 	if err != nil {
 		return
 	}
-	result = p.appendPagingQuery(dbCtx, fields).Find(out)
-	// out must be a pointer or gorm will panic above
-	elems := reflect.ValueOf(out).Elem()
+	if result = p.appendPagingQuery(dbCtx, fields).Find(dest); result.Error != nil {
+		return
+	}
+	// out must be an addressable type (a.k.a. pointer type) or gorm will panic above
+	elems := reflect.ValueOf(dest).Elem()
 	// only encode next cursor when elems is not empty slice
 	if elems.Kind() == reflect.Slice && elems.Len() > 0 {
 		hasMore := elems.Len() > p.limit
@@ -97,33 +101,36 @@ func (p *Paginator) Paginate(db *gorm.DB, out interface{}) (result *gorm.DB, c c
 
 /* private */
 
-func (p *Paginator) validate() (err error) {
-	if p.limit < 0 {
+func (p *Paginator) validate(dest interface{}) (err error) {
+	if len(p.rules) == 0 {
+		return ErrNoRule
+	}
+	if p.limit <= 0 {
 		return ErrInvalidLimit
 	}
-	if err = p.order.Validate(false); err != nil {
+	if err = p.order.validate(); err != nil {
 		return
 	}
 	for _, rule := range p.rules {
-		if err = rule.Validate(); err != nil {
+		if err = rule.validate(dest); err != nil {
 			return
 		}
 	}
 	return
 }
 
-func (p *Paginator) setup(db *gorm.DB, out interface{}) {
-	var outTable string
+func (p *Paginator) setup(db *gorm.DB, dest interface{}) {
+	var sqlTable string
 	for i := range p.rules {
 		if p.rules[i].SQLRepr == "" {
-			if outTable == "" {
+			if sqlTable == "" {
 				// https://stackoverflow.com/questions/51999441/how-to-get-a-table-name-from-a-model-in-gorm
 				stmt := &gorm.Statement{DB: db}
-				stmt.Parse(out)
-				outTable = stmt.Schema.Table
+				stmt.Parse(dest)
+				sqlTable = stmt.Schema.Table
 			}
-			// TODO: get gorm column tag
-			p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", outTable, strcase.ToSnake(p.rules[i].Key))
+			sqlKey := p.parseSQLKey(dest, p.rules[i].Key)
+			p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", sqlTable, sqlKey)
 		}
 		if p.rules[i].Order == "" {
 			p.rules[i].Order = p.order
@@ -131,8 +138,28 @@ func (p *Paginator) setup(db *gorm.DB, out interface{}) {
 	}
 }
 
-func (p *Paginator) decodeCursor(out interface{}) ([]interface{}, error) {
-	decoder, err := cursor.NewDecoder(out, p.getKeys()...)
+func (p *Paginator) parseSQLKey(dest interface{}, key string) string {
+	// dest is already validated at validataion phase
+	f, _ := util.ReflectType(dest).FieldByName(key)
+	for _, tag := range strings.Split(string(f.Tag), " ") {
+		// e.g., gorm:"type:varchar(255);column:field_name"
+		if strings.HasPrefix(tag, "gorm:") {
+			opts := strings.Split(
+				strings.Trim(tag[len("gorm:"):], "\""),
+				";",
+			)
+			for _, opt := range opts {
+				if strings.HasPrefix(opt, "column:") {
+					return opt[len("column:"):]
+				}
+			}
+		}
+	}
+	return strcase.ToSnake(f.Name)
+}
+
+func (p *Paginator) decodeCursor(dest interface{}) ([]interface{}, error) {
+	decoder, err := cursor.NewDecoder(dest, p.getKeys()...)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +199,7 @@ func (p *Paginator) buildOrderSQL() string {
 	for i, rule := range p.rules {
 		order := rule.Order
 		if p.isBackward() {
-			order = p.order.Flip()
+			order = p.order.flip()
 		}
 		orders[i] = fmt.Sprintf("%s %s", rule.SQLRepr, order)
 	}
