@@ -71,6 +71,9 @@ func (d *Decoder) DecodeStruct(cursor string, model interface{}) error {
 		var v reflect.Value
 		f := e.FieldByName(key)
 		if f.Kind() == reflect.Ptr {
+			if fields[i] == nil {
+				continue
+			}
 			v = reflect.New(reflect.ValueOf(fields[i]).Type())
 			v.Elem().Set(reflect.ValueOf(fields[i]))
 		} else {

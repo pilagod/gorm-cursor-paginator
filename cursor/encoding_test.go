@@ -231,6 +231,21 @@ func (s *encoderSuite) TestMultipleFieldsWithZeroValue() {
 	s.Equal(nil, fields[2])
 }
 
+func (s *encoderSuite) TestMultipleFieldsToStructWithZeroValue() {
+	keys := multipleModel{}.Keys()
+
+	c, err := NewEncoder(keys...).Encode(multipleModel{})
+	s.Nil(err)
+
+	var model multipleModel
+	err = NewDecoder(keys...).DecodeStruct(c, &model)
+	s.Nil(err)
+
+	s.Equal(0, model.ID)
+	s.Equal("", model.Name)
+	s.Nil(model.CreatedAt)
+}
+
 func (s *encodingSuite) encodeValue(v interface{}) (string, error) {
 	return NewEncoder("Value").Encode(v)
 }
