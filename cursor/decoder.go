@@ -19,7 +19,15 @@ type Decoder struct {
 	keys []string
 }
 
-// Decode decodes cursor into values
+// Decode decodes cursor into values (without pointer) by referencing field type on model.
+//
+// For example:
+//
+//  type model struct{
+//      Value *int
+//  }
+//
+// will be decoded as []int
 func (d *Decoder) Decode(cursor string, model interface{}) (fields []interface{}, err error) {
 	if err = d.validate(model); err != nil {
 		return
@@ -35,7 +43,7 @@ func (d *Decoder) Decode(cursor string, model interface{}) (fields []interface{}
 		return nil, ErrInvalidCursor
 	}
 	for _, key := range d.keys {
-		// key is already validated at validation phase
+		// key is already validated at beginning
 		f, _ := util.ReflectType(model).FieldByName(key)
 		v := reflect.New(util.ReflectType(f.Type)).Interface()
 		if err := jd.Decode(&v); err != nil {
@@ -48,9 +56,30 @@ func (d *Decoder) Decode(cursor string, model interface{}) (fields []interface{}
 	return
 }
 
+// DecodeStruct decodes cursor into model, model must be a pointer to struct or it will panic.
+func (d *Decoder) DecodeStruct(cursor string, model interface{}) error {
+	fields, err := d.Decode(cursor, model)
+	if err != nil {
+		return err
+	}
+	e := reflect.ValueOf(model).Elem()
+	for i, key := range d.keys {
+		var v reflect.Value
+		f := e.FieldByName(key)
+		if f.Kind() == reflect.Ptr {
+			v = reflect.New(reflect.ValueOf(fields[i]).Type())
+			v.Elem().Set(reflect.ValueOf(fields[i]))
+		} else {
+			v = reflect.ValueOf(fields[i])
+		}
+		f.Set(v)
+	}
+	return nil
+}
+
 func (d *Decoder) validate(model interface{}) error {
 	modelType := util.ReflectType(model)
-	// model must be a struct
+	// model's underlying type must be a struct
 	if modelType.Kind() != reflect.Struct {
 		return ErrInvalidModel
 	}

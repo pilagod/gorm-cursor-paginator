@@ -81,7 +81,7 @@ func (p *Paginator) Paginate(db *gorm.DB, dest interface{}) (result *gorm.DB, c 
 	if result = p.appendPagingQuery(dbCtx, fields).Find(dest); result.Error != nil {
 		return
 	}
-	// out must be an addressable type (a.k.a. pointer type) or gorm will panic above
+	// dest must be a pointer type or gorm will panic above
 	elems := reflect.ValueOf(dest).Elem()
 	// only encode next cursor when elems is not empty slice
 	if elems.Kind() == reflect.Slice && elems.Len() > 0 {
@@ -159,6 +159,7 @@ func (p *Paginator) parseSQLKey(dest interface{}, key string) string {
 }
 
 func (p *Paginator) decodeCursor(dest interface{}) ([]interface{}, error) {
+	// TODO: convert error code to paginator's
 	if p.isForward() {
 		return cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.After, dest)
 	}

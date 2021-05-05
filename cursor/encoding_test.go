@@ -163,28 +163,49 @@ func (s *encodingSuite) TestStructPtr() {
 
 /* multiple */
 
-func (s *encodingSuite) TestMultipleFields() {
-	type multipleModel struct {
-		ID        int
-		Name      string
-		CreatedAt *time.Time
-	}
-	cfs := []string{
+type multipleModel struct {
+	ID        int
+	Name      string
+	CreatedAt *time.Time
+}
+
+func (multipleModel) Keys() []string {
+	return []string{
 		"ID",
 		"Name",
 		"CreatedAt",
 	}
+}
+
+func (s *encodingSuite) TestMultipleFields() {
+	keys := multipleModel{}.Keys()
 	t := time.Now()
-	c, _ := NewEncoder(cfs...).Encode(multipleModel{
+	c, _ := NewEncoder(keys...).Encode(multipleModel{
 		ID:        123,
 		Name:      "Hello",
 		CreatedAt: &t,
 	})
-	fields, _ := NewDecoder(cfs...).Decode(c, multipleModel{})
+	fields, _ := NewDecoder(keys...).Decode(c, multipleModel{})
 	s.Len(fields, 3)
 	s.Equal(123, fields[0])
 	s.Equal("Hello", fields[1])
 	s.Equal(t.Second(), fields[2].(time.Time).Second())
+}
+
+func (s *encodingSuite) TestMultipleFieldsToStruct() {
+	keys := multipleModel{}.Keys()
+	t := time.Now()
+	c, _ := NewEncoder(keys...).Encode(multipleModel{
+		ID:        123,
+		Name:      "Hello",
+		CreatedAt: &t,
+	})
+	var model multipleModel
+	err := NewDecoder(keys...).DecodeStruct(c, &model)
+	s.Nil(err)
+	s.Equal(123, model.ID)
+	s.Equal("Hello", model.Name)
+	s.Equal(t.Second(), (*model.CreatedAt).Second())
 }
 
 func (s *encodingSuite) encodeValue(v interface{}) (string, error) {
