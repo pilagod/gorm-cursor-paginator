@@ -158,15 +158,17 @@ func (p *Paginator) parseSQLKey(dest interface{}, key string) string {
 	return strcase.ToSnake(f.Name)
 }
 
-func (p *Paginator) decodeCursor(dest interface{}) ([]interface{}, error) {
-	// TODO: convert error code to paginator's
+func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err error) {
 	if p.isForward() {
-		return cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.After, dest)
+		if result, err = cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.After, dest); err != nil {
+			err = ErrInvalidCursor
+		}
+	} else if p.isBackward() {
+		if result, err = cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.Before, dest); err != nil {
+			err = ErrInvalidCursor
+		}
 	}
-	if p.isBackward() {
-		return cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.Before, dest)
-	}
-	return nil, nil
+	return
 }
 
 func (p *Paginator) isForward() bool {

@@ -477,11 +477,12 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 	s.givenOrders(10)
 
 	var temp []order
-	_, c, _ := New(&Config{
-		Limit: 3,
-	}).Paginate(s.db, &temp)
+	_, c, _ := New(
+		WithKeys("CreatedAt", "ID"),
+		WithLimit(3),
+	).Paginate(s.db, &temp)
 
-	anchorCursor := c.After
+	anchorCursor := *c.After
 
 	var optOrders, builderOrders []order
 	var optCursor, builderCursor cursor.Cursor
@@ -489,19 +490,21 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 	// forward - keys
 
 	opts := []Option{
-		WithKeys("Remark", "CreatedAt", "ID"),
+		WithKeys("CreatedAt", "ID"),
 		WithLimit(3),
 		WithOrder(ASC),
-		WithAfter(*anchorCursor),
+		WithAfter(anchorCursor),
 	}
-	_, optCursor, _ = New(opts...).Paginate(s.db, &optOrders)
+	_, optCursor, err := New(opts...).Paginate(s.db, &optOrders)
+	s.Nil(err)
 
 	p := New()
-	p.SetKeys("Remark", "CreatedAt", "ID")
+	p.SetKeys("CreatedAt", "ID")
 	p.SetLimit(3)
 	p.SetOrder(ASC)
-	p.SetAfterCursor(*anchorCursor)
-	_, builderCursor, _ = p.Paginate(s.db, &builderOrders)
+	p.SetAfterCursor(anchorCursor)
+	_, builderCursor, err = p.Paginate(s.db, &builderOrders)
+	s.Nil(err)
 
 	s.Equal(optOrders, builderOrders)
 	s.Equal(optCursor, builderCursor)
@@ -509,19 +512,21 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 	// backward - keys
 
 	opts = []Option{
-		WithKeys("Remark", "CreatedAt", "ID"),
+		WithKeys("CreatedAt", "ID"),
 		WithLimit(3),
 		WithOrder(ASC),
-		WithBefore(*anchorCursor),
+		WithBefore(anchorCursor),
 	}
-	_, optCursor, _ = New(opts...).Paginate(s.db, &optOrders)
+	_, optCursor, err = New(opts...).Paginate(s.db, &optOrders)
+	s.Nil(err)
 
 	p = New()
-	p.SetKeys("Remark", "CreatedAt", "ID")
+	p.SetKeys("CreatedAt", "ID")
 	p.SetLimit(3)
 	p.SetOrder(ASC)
-	p.SetBeforeCursor(*anchorCursor)
-	_, builderCursor, _ = p.Paginate(s.db, &builderOrders)
+	p.SetBeforeCursor(anchorCursor)
+	_, builderCursor, err = p.Paginate(s.db, &builderOrders)
+	s.Nil(err)
 
 	s.Equal(optOrders, builderOrders)
 	s.Equal(optCursor, builderCursor)
@@ -530,26 +535,26 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 
 	opts = []Option{
 		WithRules([]Rule{
-			{Key: "Remark"},
 			{Key: "CreatedAt"},
 			{Key: "ID"},
 		}...),
 		WithLimit(3),
 		WithOrder(ASC),
-		WithAfter(*anchorCursor),
+		WithAfter(anchorCursor),
 	}
-	_, optCursor, _ = New(opts...).Paginate(s.db, &optOrders)
+	_, optCursor, err = New(opts...).Paginate(s.db, &optOrders)
+	s.Nil(err)
 
 	p = New()
 	p.SetRules([]Rule{
-		{Key: "Remark"},
 		{Key: "CreatedAt"},
 		{Key: "ID"},
 	}...)
 	p.SetLimit(3)
 	p.SetOrder(ASC)
-	p.SetAfterCursor(*anchorCursor)
-	_, builderCursor, _ = p.Paginate(s.db, &builderOrders)
+	p.SetAfterCursor(anchorCursor)
+	_, builderCursor, err = p.Paginate(s.db, &builderOrders)
+	s.Nil(err)
 
 	s.Equal(optOrders, builderOrders)
 	s.Equal(optCursor, builderCursor)
@@ -558,26 +563,26 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 
 	opts = []Option{
 		WithRules([]Rule{
-			{Key: "Remark"},
 			{Key: "CreatedAt"},
 			{Key: "ID"},
 		}...),
 		WithLimit(3),
 		WithOrder(ASC),
-		WithBefore(*anchorCursor),
+		WithBefore(anchorCursor),
 	}
-	_, optCursor, _ = New(opts...).Paginate(s.db, &optOrders)
+	_, optCursor, err = New(opts...).Paginate(s.db, &optOrders)
+	s.Nil(err)
 
 	p = New()
 	p.SetRules([]Rule{
-		{Key: "Remark"},
 		{Key: "CreatedAt"},
 		{Key: "ID"},
 	}...)
 	p.SetLimit(3)
 	p.SetOrder(ASC)
-	p.SetBeforeCursor(*anchorCursor)
-	_, builderCursor, _ = p.Paginate(s.db, &builderOrders)
+	p.SetBeforeCursor(anchorCursor)
+	_, builderCursor, err = p.Paginate(s.db, &builderOrders)
+	s.Nil(err)
 
 	s.Equal(optOrders, builderOrders)
 	s.Equal(optCursor, builderCursor)

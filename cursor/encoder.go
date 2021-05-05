@@ -28,15 +28,15 @@ func (e *Encoder) Encode(model interface{}) (string, error) {
 
 func (e *Encoder) marshalJSON(model interface{}) ([]byte, error) {
 	rv := util.ReflectValue(model)
-	fs := make([]interface{}, len(e.keys))
+	fields := make([]interface{}, len(e.keys))
 	for i, key := range e.keys {
 		v := util.ReflectValue(rv.FieldByName(key))
 		if !v.IsValid() {
 			return nil, ErrInvalidModel
 		}
-		fs[i] = v.Interface()
+		fields[i] = v.Interface()
 	}
-	result, err := json.Marshal(fs)
+	result, err := json.Marshal(fields)
 	if err != nil {
 		return nil, ErrInvalidModel
 	}
