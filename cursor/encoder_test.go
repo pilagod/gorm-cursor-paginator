@@ -30,3 +30,15 @@ func (s *encoderSuite) TestInvalidModelFieldType() {
 	)
 	s.Equal(ErrInvalidModel, err)
 }
+
+func (s *encoderSuite) TestZeroValue() {
+	e := NewEncoder("ID")
+	_, err := e.Encode(struct{ ID string }{})
+	s.Nil(err)
+}
+
+func (s *encoderSuite) TestZeroValuePtr() {
+	e := NewEncoder("ID")
+	_, err := e.Encode(struct{ ID *string }{})
+	s.Nil(err)
+}

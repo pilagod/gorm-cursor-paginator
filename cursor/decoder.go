@@ -49,7 +49,11 @@ func (d *Decoder) Decode(cursor string, model interface{}) (fields []interface{}
 		if err := jd.Decode(&v); err != nil {
 			return nil, ErrInvalidCursor
 		}
-		fields = append(fields, reflect.ValueOf(v).Elem().Interface())
+		if v == nil {
+			fields = append(fields, nil)
+		} else {
+			fields = append(fields, reflect.ValueOf(v).Elem().Interface())
+		}
 	}
 	// cursor must be a valid json after previous checks,
 	// so no need to check whether "]" is the last token

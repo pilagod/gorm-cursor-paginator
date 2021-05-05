@@ -477,10 +477,13 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 	s.givenOrders(10)
 
 	var temp []order
-	_, c, _ := New(
-		WithKeys("CreatedAt", "ID"),
+	_, c, err := New(
+		WithKeys("Remark", "CreatedAt", "ID"),
 		WithLimit(3),
 	).Paginate(s.db, &temp)
+	if err != nil {
+		s.FailNow(err.Error())
+	}
 
 	anchorCursor := *c.After
 
@@ -490,16 +493,16 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 	// forward - keys
 
 	opts := []Option{
-		WithKeys("CreatedAt", "ID"),
+		WithKeys("Remark", "CreatedAt", "ID"),
 		WithLimit(3),
 		WithOrder(ASC),
 		WithAfter(anchorCursor),
 	}
-	_, optCursor, err := New(opts...).Paginate(s.db, &optOrders)
+	_, optCursor, err = New(opts...).Paginate(s.db, &optOrders)
 	s.Nil(err)
 
 	p := New()
-	p.SetKeys("CreatedAt", "ID")
+	p.SetKeys("Remark", "CreatedAt", "ID")
 	p.SetLimit(3)
 	p.SetOrder(ASC)
 	p.SetAfterCursor(anchorCursor)
@@ -512,7 +515,7 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 	// backward - keys
 
 	opts = []Option{
-		WithKeys("CreatedAt", "ID"),
+		WithKeys("Remark", "CreatedAt", "ID"),
 		WithLimit(3),
 		WithOrder(ASC),
 		WithBefore(anchorCursor),
@@ -521,7 +524,7 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 	s.Nil(err)
 
 	p = New()
-	p.SetKeys("CreatedAt", "ID")
+	p.SetKeys("Remark", "CreatedAt", "ID")
 	p.SetLimit(3)
 	p.SetOrder(ASC)
 	p.SetBeforeCursor(anchorCursor)
@@ -535,6 +538,7 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 
 	opts = []Option{
 		WithRules([]Rule{
+			{Key: "Remark"},
 			{Key: "CreatedAt"},
 			{Key: "ID"},
 		}...),
@@ -547,6 +551,7 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 
 	p = New()
 	p.SetRules([]Rule{
+		{Key: "Remark"},
 		{Key: "CreatedAt"},
 		{Key: "ID"},
 	}...)
@@ -563,6 +568,7 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 
 	opts = []Option{
 		WithRules([]Rule{
+			{Key: "Remark"},
 			{Key: "CreatedAt"},
 			{Key: "ID"},
 		}...),
@@ -575,6 +581,7 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 
 	p = New()
 	p.SetRules([]Rule{
+		{Key: "Remark"},
 		{Key: "CreatedAt"},
 		{Key: "ID"},
 	}...)

@@ -179,13 +179,18 @@ func (multipleModel) Keys() []string {
 
 func (s *encodingSuite) TestMultipleFields() {
 	keys := multipleModel{}.Keys()
+
 	t := time.Now()
-	c, _ := NewEncoder(keys...).Encode(multipleModel{
+	c, err := NewEncoder(keys...).Encode(multipleModel{
 		ID:        123,
 		Name:      "Hello",
 		CreatedAt: &t,
 	})
-	fields, _ := NewDecoder(keys...).Decode(c, multipleModel{})
+	s.Nil(err)
+
+	fields, err := NewDecoder(keys...).Decode(c, multipleModel{})
+	s.Nil(err)
+
 	s.Len(fields, 3)
 	s.Equal(123, fields[0])
 	s.Equal("Hello", fields[1])
@@ -194,18 +199,36 @@ func (s *encodingSuite) TestMultipleFields() {
 
 func (s *encodingSuite) TestMultipleFieldsToStruct() {
 	keys := multipleModel{}.Keys()
+
 	t := time.Now()
-	c, _ := NewEncoder(keys...).Encode(multipleModel{
+	c, err := NewEncoder(keys...).Encode(multipleModel{
 		ID:        123,
 		Name:      "Hello",
 		CreatedAt: &t,
 	})
-	var model multipleModel
-	err := NewDecoder(keys...).DecodeStruct(c, &model)
 	s.Nil(err)
+
+	var model multipleModel
+	err = NewDecoder(keys...).DecodeStruct(c, &model)
+	s.Nil(err)
+
 	s.Equal(123, model.ID)
 	s.Equal("Hello", model.Name)
 	s.Equal(t.Second(), (*model.CreatedAt).Second())
+}
+
+func (s *encoderSuite) TestMultipleFieldsWithZeroValue() {
+	keys := multipleModel{}.Keys()
+
+	c, err := NewEncoder(keys...).Encode(multipleModel{})
+	s.Nil(err)
+
+	fields, err := NewDecoder(keys...).Decode(c, multipleModel{})
+	s.Nil(err)
+
+	s.Equal(0, fields[0])
+	s.Equal("", fields[1])
+	s.Equal(nil, fields[2])
 }
 
 func (s *encodingSuite) encodeValue(v interface{}) (string, error) {
