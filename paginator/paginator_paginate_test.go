@@ -235,23 +235,17 @@ func (s *paginatorSuite) TestPaginateRulesShouldTakePrecedenceOverKeys() {
 }
 
 func (s *paginatorSuite) TestPaginateShouldUseGormColumnTag() {
-	s.givenOrders([]order{
-		{ID: 1, Remark: ptrStr("c")},
-		{ID: 2, Remark: ptrStr("b")},
-		{ID: 3, Remark: ptrStr("a")},
-	})
+	s.givenOrders(3)
 
 	type order struct {
-		ID          int
-		Description string `json:"description" gorm:"type:varchar(255);column:remark"`
+		ID        int
+		OrderedAt time.Time `json:"orderedAt" gorm:"type:timestamp;column:created_at"`
 	}
 
 	var orders []order
-	result, _, _ := New(
-		WithKeys("Description"),
-	).Paginate(s.db, &orders)
+	result, _, _ := New(WithKeys("OrderedAt")).Paginate(s.db, &orders)
 	s.Nil(result.Error)
-	s.assertIDs(orders, 1, 2, 3)
+	s.assertIDs(orders, 3, 2, 1)
 }
 
 /* limit */
