@@ -213,6 +213,40 @@ func (s *paginatorSuite) TestPaginateMultipleKeys() {
 	s.assertForwardOnly(c)
 }
 
+func (s *paginatorSuite) TestPaginatePointerKey() {
+	s.givenOrders([]order{
+		{ID: 1, Remark: ptrStr("3")},
+		{ID: 2, Remark: ptrStr("2")},
+		{ID: 3, Remark: ptrStr("1")},
+	})
+
+	cfg := Config{
+		Keys:  []string{"Remark", "ID"},
+		Limit: 2,
+	}
+
+	var p1 []order
+	_, c, _ := New(&cfg).Paginate(s.db, &p1)
+	s.assertIDs(p1, 1, 2)
+	s.assertForwardOnly(c)
+
+	var p2 []order
+	_, c, _ = New(
+		&cfg,
+		WithAfter(*c.After),
+	).Paginate(s.db, &p2)
+	s.assertIDs(p2, 3)
+	s.assertBackwardOnly(c)
+
+	var p3 []order
+	_, c, _ = New(
+		&cfg,
+		WithBefore(*c.Before),
+	).Paginate(s.db, &p3)
+	s.assertIDs(p3, 1, 2)
+	s.assertForwardOnly(c)
+}
+
 func (s *paginatorSuite) TestPaginateRulesShouldTakePrecedenceOverKeys() {
 	now := time.Now()
 	// ordered by ID desc -> 2, 1
