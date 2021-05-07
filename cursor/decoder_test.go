@@ -15,38 +15,53 @@ type decoderSuite struct {
 	suite.Suite
 }
 
-func (s *decoderSuite) TestModelKeyNotMatched() {
-	_, err := NewDecoder(struct{}{}, "Hello")
+/* decode */
+
+func (s *decoderSuite) TestDecodeKeyNotMatchedModel() {
+	_, err := NewDecoder("Key").Decode("cursor", struct{ ID string }{})
 	s.Equal(ErrInvalidModel, err)
 }
 
-func (s *decoderSuite) TestNonStructModel() {
-	_, err := NewDecoder(123, "")
+func (s *decoderSuite) TestDecodeNonStructModel() {
+	_, err := NewDecoder("Key").Decode("cursor", 123)
 	s.Equal(ErrInvalidModel, err)
 }
 
-func (s *decoderSuite) TestInvalidCursorFormat() {
-	d, _ := NewDecoder(struct{ Value string }{}, "Value")
+func (s *decoderSuite) TestDecodeInvalidCursorFormat() {
+	type model struct {
+		Value string
+	}
+	d := NewDecoder("Value")
 
-	_, err := d.Decode("123")
+	// cursor must be a base64 encoded string
+	_, err := d.Decode("123", model{})
 	s.Equal(ErrInvalidCursor, err)
 
-	var c string
+	// cursor must be a valid json
+	c := base64.StdEncoding.EncodeToString([]byte(`["123"}`))
+	_, err = d.Decode(c, model{})
+	s.Equal(ErrInvalidCursor, err)
 
+	// cursor must be a json array
 	c = base64.StdEncoding.EncodeToString([]byte(`{"value": "123"}`))
-	_, err = d.Decode(c)
-	s.Equal(ErrInvalidCursor, err)
-
-	c = base64.StdEncoding.EncodeToString([]byte(`["123"}`))
-	_, err = d.Decode(c)
+	_, err = d.Decode(c, model{})
 	s.Equal(ErrInvalidCursor, err)
 }
 
-func (s *decoderSuite) TestInvalidCursorType() {
-	d, _ := NewDecoder(struct{ Value string }{}, "Value")
-	c, _ := NewEncoder("Value").Encode(struct{ Value int }{
-		Value: 123,
-	})
-	_, err := d.Decode(c)
+func (s *decoderSuite) TestDecodeInvalidCursorType() {
+	c, _ := NewEncoder("Value").Encode(struct{ Value int }{123})
+	_, err := NewDecoder("Value").Decode(c, struct{ Value string }{})
+	s.Equal(ErrInvalidCursor, err)
+}
+
+/* decode struct */
+
+func (s *decoderSuite) TestDecodeStructInvalidModel() {
+	err := NewDecoder("Value").DecodeStruct("123", struct{ ID string }{})
+	s.Equal(ErrInvalidModel, err)
+}
+
+func (s *decoderSuite) TestDecodeStructInvalidCursor() {
+	err := NewDecoder("Value").DecodeStruct("123", struct{ Value string }{})
 	s.Equal(ErrInvalidCursor, err)
 }

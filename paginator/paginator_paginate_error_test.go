@@ -1,9 +1,5 @@
 package paginator
 
-import (
-	"github.com/pilagod/gorm-cursor-paginator/cursor"
-)
-
 func (s *paginatorSuite) TestPaginateNoRule() {
 	var orders []order
 	_, _, err := New(&Config{
@@ -41,12 +37,20 @@ func (s *paginatorSuite) TestPaginateInvalidOrderOnRules() {
 	s.Equal(ErrInvalidOrder, err)
 }
 
-func (s *paginatorSuite) TestPaginateInvalidCursor() {
+func (s *paginatorSuite) TestPaginateInvalidAfterCursor() {
 	var orders []order
 	_, _, err := New(
 		WithAfter("invalid cursor"),
 	).Paginate(s.db, &orders)
-	s.Equal(cursor.ErrInvalidCursor, err)
+	s.Equal(ErrInvalidCursor, err)
+}
+
+func (s *paginatorSuite) TestPaginateInvalidBeforeCursor() {
+	var orders []order
+	_, _, err := New(
+		WithBefore("invalid cursor"),
+	).Paginate(s.db, &orders)
+	s.Equal(ErrInvalidCursor, err)
 }
 
 func (s *paginatorSuite) TestPaginateInvalidModel() {

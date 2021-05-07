@@ -32,7 +32,7 @@ func (s *encodingSuite) TestBoolPtr() {
 	b := true
 	c, _ := s.encodeValuePtr(boolModel{ValuePtr: &b})
 	v, _ := s.decodeValuePtr(boolModel{}, c)
-	s.Equal(true, v)
+	s.Equal(true, *(v.(*bool)))
 }
 
 /* int */
@@ -52,7 +52,7 @@ func (s *encodingSuite) TestIntPtr() {
 	i := 123
 	c, _ := s.encodeValuePtr(intModel{ValuePtr: &i})
 	v, _ := s.decodeValuePtr(intModel{}, c)
-	s.Equal(int(123), v)
+	s.Equal(int(123), *(v.(*int)))
 }
 
 /* uint */
@@ -71,8 +71,8 @@ func (s *encodingSuite) TestUint() {
 func (s *encodingSuite) TestUintPtr() {
 	ui := uint(123)
 	c, _ := s.encodeValuePtr(uintModel{ValuePtr: &ui})
-	v, _ := s.decodeValue(uintModel{}, c)
-	s.Equal(uint(123), v)
+	v, _ := s.decodeValuePtr(uintModel{}, c)
+	s.Equal(uint(123), *(v.(*uint)))
 }
 
 /* float */
@@ -91,7 +91,7 @@ func (s *encodingSuite) TestFloatPtr() {
 	f := 123.45
 	c, _ := s.encodeValuePtr(floatModel{ValuePtr: &f})
 	v, _ := s.decodeValuePtr(floatModel{}, c)
-	s.Equal(float64(123.45), v)
+	s.Equal(float64(123.45), *(v.(*float64)))
 }
 
 /* string */
@@ -111,7 +111,7 @@ func (s *encodingSuite) TestStringPtr() {
 	str := "hello"
 	c, _ := s.encodeValuePtr(stringModel{ValuePtr: &str})
 	v, _ := s.decodeValuePtr(stringModel{}, c)
-	s.Equal("hello", v)
+	s.Equal("hello", *(v.(*string)))
 }
 
 /* time */
@@ -132,7 +132,7 @@ func (s *encodingSuite) TestTimePtr() {
 	t := time.Now()
 	c, _ := s.encodeValuePtr(timeModel{ValuePtr: &t})
 	v, _ := s.decodeValuePtr(timeModel{}, c)
-	s.Equal(t.Second(), v.(time.Time).Second())
+	s.Equal(t.Second(), v.(*time.Time).Second())
 }
 
 /* struct */
@@ -158,34 +158,94 @@ func (s *encodingSuite) TestStructPtr() {
 	sv := structValue{Value: []byte("123")}
 	c, _ := s.encodeValuePtr(structModel{ValuePtr: &sv})
 	v, _ := s.decodeValuePtr(structModel{}, c)
-	s.Equal(sv, v)
+	s.Equal(sv, *(v.(*structValue)))
 }
 
 /* multiple */
 
-func (s *encodingSuite) TestMultipleFields() {
-	type multipleModel struct {
-		ID        int
-		Name      string
-		CreatedAt *time.Time
-	}
-	cfs := []string{
+type multipleModel struct {
+	ID        int
+	Name      string
+	CreatedAt *time.Time
+}
+
+func (multipleModel) Keys() []string {
+	return []string{
 		"ID",
 		"Name",
 		"CreatedAt",
 	}
+}
+
+func (s *encodingSuite) TestMultipleFields() {
+	keys := multipleModel{}.Keys()
+
 	t := time.Now()
-	c, _ := NewEncoder(cfs...).Encode(multipleModel{
+	c, err := NewEncoder(keys...).Encode(multipleModel{
 		ID:        123,
 		Name:      "Hello",
 		CreatedAt: &t,
 	})
-	d, _ := NewDecoder(multipleModel{}, cfs...)
-	fs, _ := d.Decode(c)
-	s.Len(fs, 3)
-	s.Equal(123, fs[0])
-	s.Equal("Hello", fs[1])
-	s.Equal(t.Second(), fs[2].(time.Time).Second())
+	s.Nil(err)
+
+	fields, err := NewDecoder(keys...).Decode(c, multipleModel{})
+	s.Nil(err)
+
+	s.Len(fields, 3)
+	s.Equal(123, fields[0])
+	s.Equal("Hello", fields[1])
+	s.Equal(t.Second(), fields[2].(*time.Time).Second())
+}
+
+func (s *encoderSuite) TestMultipleFieldsWithZeroValue() {
+	keys := multipleModel{}.Keys()
+
+	c, err := NewEncoder(keys...).Encode(multipleModel{})
+	s.Nil(err)
+
+	fields, err := NewDecoder(keys...).Decode(c, multipleModel{})
+	s.Nil(err)
+
+	s.Equal(0, fields[0])
+	s.Equal("", fields[1])
+	s.Equal((*time.Time)(nil), fields[2])
+}
+
+/* decode struct */
+
+func (s *encodingSuite) TestMultipleFieldsToStruct() {
+	keys := multipleModel{}.Keys()
+
+	t := time.Now()
+	c, err := NewEncoder(keys...).Encode(multipleModel{
+		ID:        123,
+		Name:      "Hello",
+		CreatedAt: &t,
+	})
+	s.Nil(err)
+
+	var model multipleModel
+	err = NewDecoder(keys...).DecodeStruct(c, &model)
+	s.Nil(err)
+
+	s.Equal(123, model.ID)
+	s.Equal("Hello", model.Name)
+	s.Equal(t.Second(), (*model.CreatedAt).Second())
+}
+
+func (s *encoderSuite) TestMultipleFieldsToStructWithZeroValue() {
+	keys := multipleModel{}.Keys()
+
+	c, err := NewEncoder(keys...).Encode(multipleModel{})
+	s.Nil(err)
+
+	var model multipleModel
+	err = NewDecoder(keys...).DecodeStruct(c, &model)
+	s.Nil(err)
+
+	s.Equal(0, model.ID)
+	s.Equal("", model.Name)
+	s.Equal((*time.Time)(nil), model.CreatedAt)
 }
 
 func (s *encodingSuite) encodeValue(v interface{}) (string, error) {
@@ -197,31 +257,23 @@ func (s *encodingSuite) encodeValuePtr(v interface{}) (string, error) {
 }
 
 func (s *encodingSuite) decodeValue(m interface{}, c string) (interface{}, error) {
-	d, err := NewDecoder(m, "Value")
+	fields, err := NewDecoder("Value").Decode(c, m)
 	if err != nil {
 		return nil, err
 	}
-	fs, err := d.Decode(c)
-	if err != nil {
-		return nil, err
+	if len(fields) != 1 {
+		s.FailNow("invalid value model: %v, fields %v", m, fields)
 	}
-	if len(fs) != 1 {
-		s.FailNow("invalid value model: %v, fields %v", m, fs)
-	}
-	return fs[0], nil
+	return fields[0], nil
 }
 
 func (s *encodingSuite) decodeValuePtr(m interface{}, c string) (interface{}, error) {
-	d, err := NewDecoder(m, "ValuePtr")
+	fields, err := NewDecoder("ValuePtr").Decode(c, m)
 	if err != nil {
 		return nil, err
 	}
-	fs, err := d.Decode(c)
-	if err != nil {
-		return nil, err
+	if len(fields) != 1 {
+		s.FailNow("invalid value model: %v, fields %v", m, fields)
 	}
-	if len(fs) != 1 {
-		s.FailNow("invalid value model: %v, fields %v", m, fs)
-	}
-	return fs[0], nil
+	return fields[0], nil
 }

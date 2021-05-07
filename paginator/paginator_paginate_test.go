@@ -213,6 +213,40 @@ func (s *paginatorSuite) TestPaginateMultipleKeys() {
 	s.assertForwardOnly(c)
 }
 
+func (s *paginatorSuite) TestPaginatePointerKey() {
+	s.givenOrders([]order{
+		{ID: 1, Remark: ptrStr("3")},
+		{ID: 2, Remark: ptrStr("2")},
+		{ID: 3, Remark: ptrStr("1")},
+	})
+
+	cfg := Config{
+		Keys:  []string{"Remark", "ID"},
+		Limit: 2,
+	}
+
+	var p1 []order
+	_, c, _ := New(&cfg).Paginate(s.db, &p1)
+	s.assertIDs(p1, 1, 2)
+	s.assertForwardOnly(c)
+
+	var p2 []order
+	_, c, _ = New(
+		&cfg,
+		WithAfter(*c.After),
+	).Paginate(s.db, &p2)
+	s.assertIDs(p2, 3)
+	s.assertBackwardOnly(c)
+
+	var p3 []order
+	_, c, _ = New(
+		&cfg,
+		WithBefore(*c.Before),
+	).Paginate(s.db, &p3)
+	s.assertIDs(p3, 1, 2)
+	s.assertForwardOnly(c)
+}
+
 func (s *paginatorSuite) TestPaginateRulesShouldTakePrecedenceOverKeys() {
 	now := time.Now()
 	// ordered by ID desc -> 2, 1
@@ -235,23 +269,17 @@ func (s *paginatorSuite) TestPaginateRulesShouldTakePrecedenceOverKeys() {
 }
 
 func (s *paginatorSuite) TestPaginateShouldUseGormColumnTag() {
-	s.givenOrders([]order{
-		{ID: 1, Remark: ptrStr("c")},
-		{ID: 2, Remark: ptrStr("b")},
-		{ID: 3, Remark: ptrStr("a")},
-	})
+	s.givenOrders(3)
 
 	type order struct {
-		ID          int
-		Description string `json:"description" gorm:"type:varchar(255);column:remark"`
+		ID        int
+		OrderedAt time.Time `json:"orderedAt" gorm:"type:timestamp;column:created_at"`
 	}
 
 	var orders []order
-	result, _, _ := New(
-		WithKeys("Description"),
-	).Paginate(s.db, &orders)
+	result, _, _ := New(WithKeys("OrderedAt")).Paginate(s.db, &orders)
 	s.Nil(result.Error)
-	s.assertIDs(orders, 1, 2, 3)
+	s.assertIDs(orders, 3, 2, 1)
 }
 
 /* limit */
@@ -473,15 +501,29 @@ func (s *paginatorSuite) TestPaginateJoinQueryWithAlias() {
 	s.assertForwardOnly(c)
 }
 
-func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
-	s.givenOrders(10)
+func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndKeyOptions() {
+	now := time.Now()
+	s.givenOrders([]order{
+		{ID: 1, CreatedAt: now},
+		{ID: 2, CreatedAt: now},
+		{ID: 3, CreatedAt: now},
+		{ID: 4, CreatedAt: now},
+		{ID: 5, CreatedAt: now},
+	})
 
 	var temp []order
-	_, c, _ := New(&Config{
-		Limit: 3,
-	}).Paginate(s.db, &temp)
+	result, c, err := New(
+		WithKeys("CreatedAt", "ID"),
+		WithLimit(3),
+	).Paginate(s.db, &temp)
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+	if result.Error != nil {
+		s.FailNow(result.Error.Error())
+	}
 
-	anchorCursor := c.After
+	anchorCursor := *c.After
 
 	var optOrders, builderOrders []order
 	var optCursor, builderCursor cursor.Cursor
@@ -489,19 +531,23 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 	// forward - keys
 
 	opts := []Option{
-		WithKeys("Remark", "CreatedAt", "ID"),
+		WithKeys("CreatedAt", "ID"),
 		WithLimit(3),
 		WithOrder(ASC),
-		WithAfter(*anchorCursor),
+		WithAfter(anchorCursor),
 	}
 	_, optCursor, _ = New(opts...).Paginate(s.db, &optOrders)
+	s.assertIDs(optOrders, 4, 5)
+	s.assertBackwardOnly(optCursor)
 
 	p := New()
-	p.SetKeys("Remark", "CreatedAt", "ID")
+	p.SetKeys("CreatedAt", "ID")
 	p.SetLimit(3)
 	p.SetOrder(ASC)
-	p.SetAfterCursor(*anchorCursor)
+	p.SetAfterCursor(anchorCursor)
 	_, builderCursor, _ = p.Paginate(s.db, &builderOrders)
+	s.assertIDs(builderOrders, 4, 5)
+	s.assertBackwardOnly(builderCursor)
 
 	s.Equal(optOrders, builderOrders)
 	s.Equal(optCursor, builderCursor)
@@ -509,47 +555,81 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 	// backward - keys
 
 	opts = []Option{
-		WithKeys("Remark", "CreatedAt", "ID"),
+		WithKeys("CreatedAt", "ID"),
 		WithLimit(3),
 		WithOrder(ASC),
-		WithBefore(*anchorCursor),
+		WithBefore(anchorCursor),
 	}
 	_, optCursor, _ = New(opts...).Paginate(s.db, &optOrders)
+	s.assertIDs(optOrders, 1, 2)
+	s.assertForwardOnly(optCursor)
 
 	p = New()
-	p.SetKeys("Remark", "CreatedAt", "ID")
+	p.SetKeys("CreatedAt", "ID")
 	p.SetLimit(3)
 	p.SetOrder(ASC)
-	p.SetBeforeCursor(*anchorCursor)
+	p.SetBeforeCursor(anchorCursor)
 	_, builderCursor, _ = p.Paginate(s.db, &builderOrders)
+	s.assertIDs(builderOrders, 1, 2)
+	s.assertForwardOnly(builderCursor)
 
 	s.Equal(optOrders, builderOrders)
 	s.Equal(optCursor, builderCursor)
+}
+
+func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndRuleOptions() {
+	now := time.Now()
+	s.givenOrders([]order{
+		{ID: 1, CreatedAt: now},
+		{ID: 2, CreatedAt: now},
+		{ID: 3, CreatedAt: now},
+		{ID: 4, CreatedAt: now},
+		{ID: 5, CreatedAt: now},
+	})
+
+	var temp []order
+	result, c, err := New(
+		WithKeys("CreatedAt", "ID"),
+		WithLimit(3),
+	).Paginate(s.db, &temp)
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+	if result.Error != nil {
+		s.FailNow(result.Error.Error())
+	}
+
+	anchorCursor := *c.After
+
+	var optOrders, builderOrders []order
+	var optCursor, builderCursor cursor.Cursor
 
 	// forward - rules
 
-	opts = []Option{
+	opts := []Option{
 		WithRules([]Rule{
-			{Key: "Remark"},
 			{Key: "CreatedAt"},
 			{Key: "ID"},
 		}...),
 		WithLimit(3),
 		WithOrder(ASC),
-		WithAfter(*anchorCursor),
+		WithAfter(anchorCursor),
 	}
 	_, optCursor, _ = New(opts...).Paginate(s.db, &optOrders)
+	s.assertIDs(optOrders, 4, 5)
+	s.assertBackwardOnly(optCursor)
 
-	p = New()
+	p := New()
 	p.SetRules([]Rule{
-		{Key: "Remark"},
 		{Key: "CreatedAt"},
 		{Key: "ID"},
 	}...)
 	p.SetLimit(3)
 	p.SetOrder(ASC)
-	p.SetAfterCursor(*anchorCursor)
-	_, builderCursor, _ = p.Paginate(s.db, &builderOrders)
+	p.SetAfterCursor(anchorCursor)
+	_, builderCursor, err = p.Paginate(s.db, &builderOrders)
+	s.assertIDs(builderOrders, 4, 5)
+	s.assertBackwardOnly(builderCursor)
 
 	s.Equal(optOrders, builderOrders)
 	s.Equal(optCursor, builderCursor)
@@ -558,26 +638,28 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndOptions() {
 
 	opts = []Option{
 		WithRules([]Rule{
-			{Key: "Remark"},
 			{Key: "CreatedAt"},
 			{Key: "ID"},
 		}...),
 		WithLimit(3),
 		WithOrder(ASC),
-		WithBefore(*anchorCursor),
+		WithBefore(anchorCursor),
 	}
 	_, optCursor, _ = New(opts...).Paginate(s.db, &optOrders)
+	s.assertIDs(optOrders, 1, 2)
+	s.assertForwardOnly(optCursor)
 
 	p = New()
 	p.SetRules([]Rule{
-		{Key: "Remark"},
 		{Key: "CreatedAt"},
 		{Key: "ID"},
 	}...)
 	p.SetLimit(3)
 	p.SetOrder(ASC)
-	p.SetBeforeCursor(*anchorCursor)
+	p.SetBeforeCursor(anchorCursor)
 	_, builderCursor, _ = p.Paginate(s.db, &builderOrders)
+	s.assertIDs(builderOrders, 1, 2)
+	s.assertForwardOnly(builderCursor)
 
 	s.Equal(optOrders, builderOrders)
 	s.Equal(optCursor, builderCursor)

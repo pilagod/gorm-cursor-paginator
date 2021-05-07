@@ -3,6 +3,7 @@ package cursor
 import (
 	"encoding/base64"
 	"encoding/json"
+	"reflect"
 
 	"github.com/pilagod/gorm-cursor-paginator/internal/util"
 )
@@ -28,17 +29,25 @@ func (e *Encoder) Encode(model interface{}) (string, error) {
 
 func (e *Encoder) marshalJSON(model interface{}) ([]byte, error) {
 	rv := util.ReflectValue(model)
-	fs := make([]interface{}, len(e.keys))
+	fields := make([]interface{}, len(e.keys))
 	for i, key := range e.keys {
-		v := util.ReflectValue(rv.FieldByName(key))
-		if !v.IsValid() {
+		f := rv.FieldByName(key)
+		if f == (reflect.Value{}) {
 			return nil, ErrInvalidModel
 		}
-		fs[i] = v.Interface()
+		if e.isNilable(f) && f.IsZero() {
+			fields[i] = nil
+		} else {
+			fields[i] = util.ReflectValue(f).Interface()
+		}
 	}
-	result, err := json.Marshal(fs)
+	result, err := json.Marshal(fields)
 	if err != nil {
 		return nil, ErrInvalidModel
 	}
 	return result, nil
+}
+
+func (e *Encoder) isNilable(v reflect.Value) bool {
+	return v.Kind() >= 18 && v.Kind() <= 23
 }
