@@ -9,8 +9,8 @@ import (
 	"github.com/iancoleman/strcase"
 	"gorm.io/gorm"
 
-	"github.com/pilagod/gorm-cursor-paginator/cursor"
-	"github.com/pilagod/gorm-cursor-paginator/internal/util"
+	"github.com/pilagod/gorm-cursor-paginator/v2/cursor"
+	"github.com/pilagod/gorm-cursor-paginator/v2/internal/util"
 )
 
 // New creates paginator
@@ -24,7 +24,7 @@ func New(opts ...Option) *Paginator {
 
 // Paginator a builder doing pagination
 type Paginator struct {
-	cursor cursor.Cursor
+	cursor Cursor
 	rules  []Rule
 	limit  int
 	order  Order
@@ -68,7 +68,7 @@ func (p *Paginator) SetBeforeCursor(beforeCursor string) {
 }
 
 // Paginate paginates data
-func (p *Paginator) Paginate(db *gorm.DB, dest interface{}) (result *gorm.DB, c cursor.Cursor, err error) {
+func (p *Paginator) Paginate(db *gorm.DB, dest interface{}) (result *gorm.DB, c Cursor, err error) {
 	if err = p.validate(dest); err != nil {
 		return
 	}
@@ -229,13 +229,13 @@ func (p *Paginator) buildCursorSQLQueryArgs(fields []interface{}) (args []interf
 	return
 }
 
-func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result cursor.Cursor, err error) {
+func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Cursor, err error) {
 	encoder := cursor.NewEncoder(p.getKeys()...)
 	// encode after cursor
 	if p.isBackward() || hasMore {
 		c, err := encoder.Encode(elems.Index(elems.Len() - 1))
 		if err != nil {
-			return cursor.Cursor{}, err
+			return Cursor{}, err
 		}
 		result.After = &c
 	}
@@ -243,7 +243,7 @@ func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result curs
 	if p.isForward() || (hasMore && p.isBackward()) {
 		c, err := encoder.Encode(elems.Index(0))
 		if err != nil {
-			return cursor.Cursor{}, err
+			return Cursor{}, err
 		}
 		result.Before = &c
 	}

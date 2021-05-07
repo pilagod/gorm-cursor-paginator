@@ -5,110 +5,193 @@ gorm-cursor-paginator
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/6d8f88386eeb401b8804bb78f372b346)](https://app.codacy.com/app/pilagod/gorm-cursor-paginator?utm_source=github.com&utm_medium=referral&utm_content=pilagod/gorm-cursor-paginator&utm_campaign=Badge_Grade_Dashboard)
 =====================
 
-A paginator doing cursor-based pagination based on [GORM](https://github.com/jinzhu/gorm)
+A paginator doing cursor-based pagination based on [GORM](https://github.com/go-gorm/gorm)
+
+> This doc is for v2, which uses [GORM v2](https://github.com/go-gorm/gorm). If you are using [GORM v1](https://github.com/jinzhu/gorm), please checkout [v1 doc](https://github.com/pilagod/gorm-cursor-paginator/tree/v1).
+
+Features
+--------
+
+- Query extendable.
+- Multiple paging keys.
+- Paging rule customization (e.g., order, SQL representation) for each key.
+- GORM `column` tag supported.
+- Error handling enhancement.
+- Exporting `cursor` module for advanced usage.
 
 Installation
 ------------
 
 ```sh
-go get -u github.com/pilagod/gorm-cursor-paginator
+go get -u github.com/pilagod/gorm-cursor-paginator/v2
 ```
 
-Usage by Example
+Usage By Example
 ----------------
 
-> For more comprehensive examples, you can check [example/main.go](https://github.com/pilagod/gorm-cursor-paginator/blob/master/example/main.go) and [paginator_test.go](https://github.com/pilagod/gorm-cursor-paginator/blob/master/paginator_test.go)
-
-Assume there is an query struct for paging:
+Given a `User` model:
 
 ```go
-type PagingQuery struct {
-    After  *string
-    Before *string
-    Limit  *int
-    Order  *string
-}
-```
-
-and a GORM model:
-
-```go
-type Model struct {
+type User struct {
     ID          int
-    CreatedAt   time.Time
+    JoinedAt    time.Time `gorm:"column:created_at"`
 }
 ```
 
-You can simply build up a new cursor paginator from the PagingQuery like:
+We need to construct a `paginator.Paginator` based on struct fields on `User` . First we have to import `paginator`:
 
 ```go
 import (
-    paginator "github.com/pilagod/gorm-cursor-paginator"
+   "github.com/pilagod/gorm-cursor-paginator/v2/paginator"
 )
+```
 
-func GetModelPaginator(q PagingQuery) *paginator.Paginator {
-    p := paginator.New()
+Then we can start configuring `paginator.Paginator`, here are some useful patterns:
 
-    p.SetKeys("CreatedAt", "ID") // [default: "ID"] (supporting multiple keys, order of keys matters)
-
-    if q.After != nil {
-        p.SetAfterCursor(*q.After) // [default: nil]
+```go
+// configure paginator with paginator.Option
+func UserPaginator(
+    cursor paginator.Cursor, 
+    order *paginator.Order,
+    limit *int,
+) *paginator.Paginator {
+    opts := []paginator.Option{
+        &Config{
+            // keys should be ordered by ordering priority
+            Keys: []string{"ID", "JoinedAt"}, // default: []string{"ID"}
+            Limit: 5, // default: 10
+            Order: paginator.ASC, // default: DESC
+        },
     }
-
-    if q.Before != nil {
-        p.SetBeforeCursor(*q.Before) // [default: nil]
+    if limit != nil {
+        opts = append(opts, paginator.WithLimit(*limit))
     }
-
-    if q.Limit != nil {
-        p.SetLimit(*q.Limit) // [default: 10]
+    if order != nil {
+        opts = append(opts, paginator.WithOrder(*order))
     }
+    if cursor.After != nil {
+        opts = append(opts, paginator.WithAfter(*cursor.After))
+    }
+    if cursor.Before != nil {
+        opts = append(opts, paginator.WithBefore(*cursor.Before))
+    }
+    return paginator.New(opts...)
+}
 
-    if q.Order != nil && *q.Order == "asc" {
-        p.SetOrder(paginator.ASC) // [default: paginator.DESC]
+// configure paginator with setters
+func UserPaginator(
+    cursor paginator.Cursor,
+    order *paginator.Order, 
+    limit *int,
+) *paginator.Paginator {
+    p := paginator.New(
+        paginator.WithKeys("ID", "JoinedAt"),
+        paginator.WithLimit(5),
+        paginator.WithOrder(paginator.ASC),
+    )
+    if order != nil {
+        p.SetOrder(*order)
+    }
+    if limit != nil {
+        p.SetLimit(*limit)
+    }
+    if cursor.After != nil {
+        p.SetAfter(*cursor.After)
+    }
+    if cursor.Before != nil {
+        p.SetBefore(*cursor.Before)
     }
     return p
 }
 ```
 
-Then you can start to do pagination easily with GORM:
+If you need more fine grained setting for each key, you can use `paginator.Rule`:
+
+> `SQLRepr` is especially useful when you have `JOIN` or table alias in your SQL query. If `SQLRepr` is not specified, paginator will use the table name from paginated model, plus table key derived by below rules to form the SQL query:
+>
+> 1. Search GORM tag `column` on struct field.
+> 2. If tag not found, convert struct field name to snake case.
+>
 
 ```go
-func Find(db *gorm.DB, q PagingQuery) ([]Model, paginator.Cursor, error) {
-    var models []Model
-
-    stmt := db.Where(/* ... other filters ... */)
-    stmt = db.Or(/* ... more other filters ... */)
-
-    // get paginator for Model
-    p := GetModelPaginator(q)
-
-    // use GORM-like syntax to do pagination
-    result := p.Paginate(stmt, &models)
-
-    if result.Error != nil {
-        // ...
+func UserPaginator(/* ... */) {
+    opts := []paginator.Option{
+        &Config{
+            Rules: []paginator.Rule{
+                {
+                    Key: "ID",
+                },
+                {
+                    Key: "JoinedAt",
+                    Order: paginator.ASC,
+                    SQLRepr: "users.created_at",
+                },
+            },
+            Limit: 5,
+            Order: paginator.DESC, // this applies to keys without order specified, in this example is the key "ID".
+        },
     }
-    // get cursor for next iteration
-    cursor := p.GetNextCursor()
-
-    return models, cursor, nil
+    // ...
+    return paginator.New(opts...)
 }
 ```
 
-After paginating, you can call `GetNextCursor()`, which returns a `Cursor` struct containing cursor for next iteration:
+After setup, you can start paginating with GORM:
+
+```go
+func FindUsers(db *gorm.DB, query Query) ([]User, paginator.Cursor, error) {
+    var users []User
+
+    // extend query before paginating
+    stmt := db.
+        Select(/* fields */).
+        Joins(/* joins */).
+        Where(/* queries */)
+
+    // find users with pagination
+    result, cursor, err := UserPaginator(/* config */).Paginate(stmt, &users)
+
+    // this is paginator error, e.g., invalid 
+    if err != nil {
+        return nil, paginator.Cursor{}, err
+    }
+
+    // this is gorm error
+    if result.Error != nil {
+        return nil, paginator.Cursor{}, result.Error
+    }
+
+    return users, cursor, nil
+}
+```
+
+The second value returned from `paginator.Paginator.Paginate` is a `paginator.Cursor`, which is a re-exported struct from `cursor.Cursor`:
 
 ```go
 type Cursor struct {
-    After  *string `json:"after"`
-    Before *string `json:"before"`
+    After  *string `json:"after" query:"after"`
+    Before *string `json:"before" query:"before"`
 }
 ```
 
-That's all ! Enjoy your paging in the GORM world :tada:
+That's all! Enjoy paginating in the GORM world. :tada:
+
+> For more paginating examples, please checkout [exmaple/main.go](https://github.com/pilagod/gorm-cursor-paginator/blob/master/example/main.go) and [paginator/paginator_paginate_test.go](https://github.com/pilagod/gorm-cursor-paginator/blob/master/paginator/paginator_paginate_test.go)
+>
+> For manually encoding/decoding cursor exmaples, please checkout [cursor/encoding_test.go](https://github.com/pilagod/gorm-cursor-paginator/blob/master/cursor/encoding_test.go)
+
+Known Issues
+------------
+
+1. Please make sure you're not paginating by nullable fields. Nullable values would occur [NULLS { FIRST | LAST } problems](https://www.postgresql.org/docs/13/queries-order.html). Current workaround recommended is to select only non-null fields for paginating, or filter null values beforehand:
+
+    ```go
+    stmt = db.Where("nullable_field IS NOT NULL")
+    ```
 
 License
 -------
 
-© Chun-Yan Ho (pilagod), 2018-NOW
+© Cyan Ho (pilagod), 2018-NOW
 
 Released under the [MIT License](https://github.com/pilagod/gorm-cursor-paginator/blob/master/LICENSE)

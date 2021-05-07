@@ -2,8 +2,6 @@ package paginator
 
 import (
 	"time"
-
-	"github.com/pilagod/gorm-cursor-paginator/cursor"
 )
 
 func (s *paginatorSuite) TestPaginateDefaultOptions() {
@@ -526,7 +524,7 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndKeyOptions() {
 	anchorCursor := *c.After
 
 	var optOrders, builderOrders []order
-	var optCursor, builderCursor cursor.Cursor
+	var optCursor, builderCursor Cursor
 
 	// forward - keys
 
@@ -602,7 +600,7 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndRuleOptions() {
 	anchorCursor := *c.After
 
 	var optOrders, builderOrders []order
-	var optCursor, builderCursor cursor.Cursor
+	var optCursor, builderCursor Cursor
 
 	// forward - rules
 

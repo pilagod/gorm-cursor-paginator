@@ -1,4 +1,4 @@
-module github.com/pilagod/gorm-cursor-paginator
+module github.com/pilagod/gorm-cursor-paginator/v2
 
 go 1.14
 

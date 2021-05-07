@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pilagod/gorm-cursor-paginator/cursor"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -150,22 +149,22 @@ func (s *paginatorSuite) assertIDs(result interface{}, ids ...int) {
 	}
 }
 
-func (s *paginatorSuite) assertForwardOnly(c cursor.Cursor) {
+func (s *paginatorSuite) assertForwardOnly(c Cursor) {
 	s.NotNil(c.After)
 	s.Nil(c.Before)
 }
 
-func (s *paginatorSuite) assertBackwardOnly(c cursor.Cursor) {
+func (s *paginatorSuite) assertBackwardOnly(c Cursor) {
 	s.Nil(c.After)
 	s.NotNil(c.Before)
 }
 
-func (s *paginatorSuite) assertBothDirections(c cursor.Cursor) {
+func (s *paginatorSuite) assertBothDirections(c Cursor) {
 	s.NotNil(c.After)
 	s.NotNil(c.Before)
 }
 
-func (s *paginatorSuite) assertNoMore(c cursor.Cursor) {
+func (s *paginatorSuite) assertNoMore(c Cursor) {
 	s.Nil(c.After)
 	s.Nil(c.Before)
 }
