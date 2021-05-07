@@ -183,7 +183,7 @@ That's all! Enjoy paginating in the GORM world. :tada:
 Known Issues
 ------------
 
-1. Please make sure you're not paginating by nullable fields. Nullable values would occur [NULLS { FIRST | LAST } problems](https://www.postgresql.org/docs/13/queries-order.html). Current workaround recommended is to select only non-null fields for paginating, or filter null values beforehand:
+1. Please make sure you're not paginating by nullable fields. Nullable values would occur [NULLS { FIRST | LAST } problems](https://learnsql.com/blog/how-to-order-rows-with-nulls/). Current workaround recommended is to select only non-null fields for paginating, or filter null values beforehand:
 
     ```go
     stmt = db.Where("nullable_field IS NOT NULL")
