@@ -38,7 +38,7 @@ type User struct {
 }
 ```
 
-We need to construct a `paginator.Paginator` based on struct fields on `User` . First we have to import `paginator`:
+We need to construct a `paginator.Paginator` based on fields of `User` struct. First we import `paginator`:
 
 ```go
 import (
@@ -49,14 +49,14 @@ import (
 Then we can start configuring `paginator.Paginator`, here are some useful patterns:
 
 ```go
-// configure paginator with paginator.Option
+// configure paginator with paginator.Config and paginator.Option
 func UserPaginator(
     cursor paginator.Cursor, 
     order *paginator.Order,
     limit *int,
 ) *paginator.Paginator {
     opts := []paginator.Option{
-        &Config{
+        &paginator.Config{
             // keys should be ordered by ordering priority
             Keys: []string{"ID", "JoinedAt"}, // default: []string{"ID"}
             Limit: 5, // default: 10
@@ -105,7 +105,7 @@ func UserPaginator(
 }
 ```
 
-If you need more fine grained setting for each key, you can use `paginator.Rule`:
+If you need fine grained setting for each key, you can use `paginator.Rule`:
 
 > `SQLRepr` is especially useful when you have `JOIN` or table alias in your SQL query. If `SQLRepr` is not specified, paginator will use the table name from paginated model, plus table key derived by below rules to form the SQL query:
 >
@@ -116,7 +116,7 @@ If you need more fine grained setting for each key, you can use `paginator.Rule`
 ```go
 func UserPaginator(/* ... */) {
     opts := []paginator.Option{
-        &Config{
+        &paginator.Config{
             Rules: []paginator.Rule{
                 {
                     Key: "ID",
@@ -128,7 +128,7 @@ func UserPaginator(/* ... */) {
                 },
             },
             Limit: 5,
-            Order: paginator.DESC, // this applies to keys without order specified, in this example is the key "ID".
+            Order: paginator.DESC, // outer order will apply to keys without order specified, in this example is the key "ID".
         },
     }
     // ...
