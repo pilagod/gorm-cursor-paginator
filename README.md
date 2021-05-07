@@ -151,7 +151,7 @@ func FindUsers(db *gorm.DB, query Query) ([]User, paginator.Cursor, error) {
     // find users with pagination
     result, cursor, err := UserPaginator(/* config */).Paginate(stmt, &users)
 
-    // this is paginator error, e.g., invalid 
+    // this is paginator error, e.g., invalid cursor
     if err != nil {
         return nil, paginator.Cursor{}, err
     }
