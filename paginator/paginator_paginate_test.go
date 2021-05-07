@@ -3,7 +3,7 @@ package paginator
 import (
 	"time"
 
-	"github.com/pilagod/gorm-cursor-paginator/cursor"
+	"github.com/pilagod/gorm-cursor-paginator/v2/cursor"
 )
 
 func (s *paginatorSuite) TestPaginateDefaultOptions() {

@@ -1,7 +1,7 @@
 gorm-cursor-paginator
 [![Build Status](https://travis-ci.org/pilagod/gorm-cursor-paginator.svg?branch=master)](https://travis-ci.org/pilagod/gorm-cursor-paginator)
 [![Coverage Status](https://coveralls.io/repos/github/pilagod/gorm-cursor-paginator/badge.svg?branch=master)](https://coveralls.io/github/pilagod/gorm-cursor-paginator?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/pilagod/gorm-cursor-paginator)](https://goreportcard.com/report/github.com/pilagod/gorm-cursor-paginator)
+[![Go Report Card](https://goreportcard.com/badge/github.com/pilagod/gorm-cursor-paginator/v2)](https://goreportcard.com/report/github.com/pilagod/gorm-cursor-paginator/v2)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/6d8f88386eeb401b8804bb78f372b346)](https://app.codacy.com/app/pilagod/gorm-cursor-paginator?utm_source=github.com&utm_medium=referral&utm_content=pilagod/gorm-cursor-paginator&utm_campaign=Badge_Grade_Dashboard)
 =====================
 
@@ -11,13 +11,13 @@ Installation
 ------------
 
 ```sh
-go get -u github.com/pilagod/gorm-cursor-paginator
+go get -u github.com/pilagod/gorm-cursor-paginator/v2
 ```
 
 Usage by Example
 ----------------
 
-> For more comprehensive examples, you can check [example/main.go](https://github.com/pilagod/gorm-cursor-paginator/blob/master/example/main.go) and [paginator_test.go](https://github.com/pilagod/gorm-cursor-paginator/blob/master/paginator_test.go)
+> For more comprehensive examples, you can check [example/main.go](https://github.com/pilagod/gorm-cursor-paginator/v2/blob/master/example/main.go) and [paginator_test.go](https://github.com/pilagod/gorm-cursor-paginator/v2/blob/master/paginator_test.go)
 
 Assume there is an query struct for paging:
 
@@ -43,7 +43,7 @@ You can simply build up a new cursor paginator from the PagingQuery like:
 
 ```go
 import (
-    paginator "github.com/pilagod/gorm-cursor-paginator"
+    paginator "github.com/pilagod/gorm-cursor-paginator/v2"
 )
 
 func GetModelPaginator(q PagingQuery) *paginator.Paginator {
@@ -111,4 +111,4 @@ License
 
 © Chun-Yan Ho (pilagod), 2018-NOW
 
-Released under the [MIT License](https://github.com/pilagod/gorm-cursor-paginator/blob/master/LICENSE)
+Released under the [MIT License](https://github.com/pilagod/gorm-cursor-paginator/v2/blob/master/LICENSE)

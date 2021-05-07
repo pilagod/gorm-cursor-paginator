@@ -9,8 +9,8 @@ import (
 	"github.com/iancoleman/strcase"
 	"gorm.io/gorm"
 
-	"github.com/pilagod/gorm-cursor-paginator/cursor"
-	"github.com/pilagod/gorm-cursor-paginator/internal/util"
+	"github.com/pilagod/gorm-cursor-paginator/v2/cursor"
+	"github.com/pilagod/gorm-cursor-paginator/v2/internal/util"
 )
 
 // New creates paginator

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pilagod/gorm-cursor-paginator/cursor"
+	"github.com/pilagod/gorm-cursor-paginator/v2/cursor"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
