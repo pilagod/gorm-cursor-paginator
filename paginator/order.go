@@ -9,9 +9,16 @@ const (
 	DESC Order = "DESC"
 )
 
-func flip(order Order) Order {
-	if order == ASC {
+func (o *Order) flip() Order {
+	if *o == ASC {
 		return DESC
 	}
 	return ASC
+}
+
+func (o *Order) validate() error {
+	if *o != ASC && *o != DESC {
+		return ErrInvalidOrder
+	}
+	return nil
 }
