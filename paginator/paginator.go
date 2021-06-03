@@ -198,7 +198,7 @@ func (p *Paginator) buildOrderSQL() string {
 	for i, rule := range p.rules {
 		order := rule.Order
 		if p.isBackward() {
-			order = p.order.flip()
+			order = order.flip()
 		}
 		orders[i] = fmt.Sprintf("%s %s", rule.SQLRepr, order)
 	}
