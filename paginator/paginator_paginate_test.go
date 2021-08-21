@@ -2,6 +2,8 @@ package paginator
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 func (s *paginatorSuite) TestPaginateDefaultOptions() {
@@ -420,7 +422,10 @@ func (s *paginatorSuite) TestPaginateJoinQuery() {
 	}
 
 	var p1 []item
-	_, c, _ := New(&cfg).Paginate(stmt, &p1)
+	_, c, _ := New(&cfg).Paginate(
+		stmt.Session(&gorm.Session{}),
+		&p1,
+	)
 	s.assertIDRange(p1, 5, 3)
 	s.assertForwardOnly(c)
 
@@ -428,7 +433,10 @@ func (s *paginatorSuite) TestPaginateJoinQuery() {
 	_, c, _ = New(
 		&cfg,
 		WithAfter(*c.After),
-	).Paginate(stmt, &p2)
+	).Paginate(
+		stmt.Session(&gorm.Session{}),
+		&p2,
+	)
 	s.assertIDRange(p2, 2, 1)
 	s.assertBackwardOnly(c)
 
@@ -436,7 +444,10 @@ func (s *paginatorSuite) TestPaginateJoinQuery() {
 	_, c, _ = New(
 		&cfg,
 		WithBefore(*c.Before),
-	).Paginate(stmt, &p3)
+	).Paginate(
+		stmt.Session(&gorm.Session{}),
+		&p3,
+	)
 	s.assertIDRange(p3, 5, 3)
 	s.assertForwardOnly(c)
 }
@@ -478,7 +489,10 @@ func (s *paginatorSuite) TestPaginateJoinQueryWithAlias() {
 	}
 
 	var p1 []itemDTO
-	_, c, _ := New(&cfg).Paginate(stmt, &p1)
+	_, c, _ := New(&cfg).Paginate(
+		stmt.Session(&gorm.Session{}),
+		&p1,
+	)
 	s.assertIDs(p1, 6, 4, 2)
 	s.assertForwardOnly(c)
 
@@ -486,7 +500,10 @@ func (s *paginatorSuite) TestPaginateJoinQueryWithAlias() {
 	_, c, _ = New(
 		&cfg,
 		WithAfter(*c.After),
-	).Paginate(stmt, &p2)
+	).Paginate(
+		stmt.Session(&gorm.Session{}),
+		&p2,
+	)
 	s.assertIDs(p2, 5, 3, 1)
 	s.assertBackwardOnly(c)
 
@@ -494,7 +511,10 @@ func (s *paginatorSuite) TestPaginateJoinQueryWithAlias() {
 	_, c, _ = New(
 		&cfg,
 		WithBefore(*c.Before),
-	).Paginate(stmt, &p3)
+	).Paginate(
+		stmt.Session(&gorm.Session{}),
+		&p3,
+	)
 	s.assertIDs(p3, 6, 4, 2)
 	s.assertForwardOnly(c)
 }

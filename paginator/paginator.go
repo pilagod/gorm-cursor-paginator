@@ -1,7 +1,6 @@
 package paginator
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -72,13 +71,12 @@ func (p *Paginator) Paginate(db *gorm.DB, dest interface{}) (result *gorm.DB, c 
 	if err = p.validate(dest); err != nil {
 		return
 	}
-	dbCtx := db.WithContext(context.Background())
-	p.setup(dbCtx, dest)
+	p.setup(db, dest)
 	fields, err := p.decodeCursor(dest)
 	if err != nil {
 		return
 	}
-	if result = p.appendPagingQuery(dbCtx, fields).Find(dest); result.Error != nil {
+	if result = p.appendPagingQuery(db, fields).Find(dest); result.Error != nil {
 		return
 	}
 	// dest must be a pointer type or gorm will panic above
