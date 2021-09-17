@@ -1,6 +1,7 @@
 package paginator
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -130,6 +131,10 @@ func (p *Paginator) setup(db *gorm.DB, dest interface{}) {
 			sqlKey := p.parseSQLKey(dest, p.rules[i].Key)
 			p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", sqlTable, sqlKey)
 		}
+		if p.rules[i].ReplaceNULLWith != nil {
+			data, _ := json.Marshal(p.rules[i].ReplaceNULLWith)
+			p.rules[i].SQLRepr = fmt.Sprintf("COALESCE(%s, '%v')", p.rules[i].SQLRepr, string(data))
+		}
 		if p.rules[i].Order == "" {
 			p.rules[i].Order = p.order
 		}
@@ -228,7 +233,7 @@ func (p *Paginator) buildCursorSQLQueryArgs(fields []interface{}) (args []interf
 }
 
 func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Cursor, err error) {
-	encoder := cursor.NewEncoder(p.getKeys()...)
+	encoder := cursor.NewEncoder(p.getKeys(), p.getNullReplacements())
 	// encode after cursor
 	if p.isBackward() || hasMore {
 		c, err := encoder.Encode(elems.Index(elems.Len() - 1))
@@ -256,4 +261,12 @@ func (p *Paginator) getKeys() []string {
 		keys[i] = rule.Key
 	}
 	return keys
+}
+
+func (p *Paginator) getNullReplacements() []interface{} {
+	replacements := make([]interface{}, len(p.rules))
+	for i, rule := range p.rules {
+		replacements[i] = rule.ReplaceNULLWith
+	}
+	return replacements
 }

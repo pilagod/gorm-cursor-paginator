@@ -4,9 +4,10 @@ import "github.com/pilagod/gorm-cursor-paginator/v2/internal/util"
 
 // Rule for paginator
 type Rule struct {
-	Key     string
-	Order   Order
-	SQLRepr string
+	Key             string
+	Order           Order
+	SQLRepr         string
+	ReplaceNULLWith interface{}
 }
 
 func (r *Rule) validate(dest interface{}) (err error) {
