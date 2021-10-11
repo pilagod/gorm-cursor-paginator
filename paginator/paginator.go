@@ -161,6 +161,18 @@ func (p *Paginator) parseSQLKey(dest interface{}, key string) string {
 	return strcase.ToSnake(f.Name)
 }
 
+// https://mangatmodi.medium.com/go-check-nil-interface-the-right-way-d142776edef1
+func isNil(i interface{}) bool {
+	if i == nil {
+		return true
+	}
+	switch reflect.TypeOf(i).Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+		return reflect.ValueOf(i).IsNil()
+	}
+	return false
+}
+
 func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err error) {
 	if p.isForward() {
 		if result, err = cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.After, dest); err != nil {
@@ -169,6 +181,13 @@ func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err er
 	} else if p.isBackward() {
 		if result, err = cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.Before, dest); err != nil {
 			err = ErrInvalidCursor
+		}
+	}
+	// replace null values
+	replacements := p.getNullReplacements()
+	for i := range result{
+		if isNil(result[i]) {
+			result[i] = replacements[i]
 		}
 	}
 	return
@@ -233,7 +252,7 @@ func (p *Paginator) buildCursorSQLQueryArgs(fields []interface{}) (args []interf
 }
 
 func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Cursor, err error) {
-	encoder := cursor.NewEncoder(p.getKeys(), p.getNullReplacements())
+	encoder := cursor.NewEncoder(p.getKeys()...)
 	// encode after cursor
 	if p.isBackward() || hasMore {
 		c, err := encoder.Encode(elems.Index(elems.Len() - 1))

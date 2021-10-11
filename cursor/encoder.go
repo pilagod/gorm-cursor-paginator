@@ -9,14 +9,13 @@ import (
 )
 
 // NewEncoder creates cursor encoder
-func NewEncoder(keys []string, nullReplacements []interface{}) *Encoder {
-	return &Encoder{keys, nullReplacements}
+func NewEncoder(keys ...string) *Encoder {
+	return &Encoder{keys}
 }
 
 // Encoder cursor encoder
 type Encoder struct {
-	keys             []string
-	nullReplacements []interface{}
+	keys []string
 }
 
 // Encode encodes model into cursor
@@ -37,7 +36,7 @@ func (e *Encoder) marshalJSON(model interface{}) ([]byte, error) {
 			return nil, ErrInvalidModel
 		}
 		if e.isNilable(f) && f.IsZero() {
-			fields[i] = e.nullReplacements[i]
+			fields[i] = nil
 		} else {
 			fields[i] = util.ReflectValue(f).Interface()
 		}
