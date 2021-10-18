@@ -1,7 +1,6 @@
 package paginator
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -121,22 +120,22 @@ func (p *Paginator) validate(dest interface{}) (err error) {
 func (p *Paginator) setup(db *gorm.DB, dest interface{}) {
 	var sqlTable string
 	for i := range p.rules {
-		if p.rules[i].SQLRepr == "" {
+		rule := &p.rules[i]
+		if rule.SQLRepr == "" {
 			if sqlTable == "" {
 				// https://stackoverflow.com/questions/51999441/how-to-get-a-table-name-from-a-model-in-gorm
 				stmt := &gorm.Statement{DB: db}
 				stmt.Parse(dest)
 				sqlTable = stmt.Schema.Table
 			}
-			sqlKey := p.parseSQLKey(dest, p.rules[i].Key)
-			p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", sqlTable, sqlKey)
+			sqlKey := p.parseSQLKey(dest, rule.Key)
+			rule.SQLRepr = fmt.Sprintf("%s.%s", sqlTable, sqlKey)
 		}
-		if p.rules[i].ReplaceNULLWith != nil {
-			data, _ := json.Marshal(p.rules[i].ReplaceNULLWith)
-			p.rules[i].SQLRepr = fmt.Sprintf("COALESCE(%s, '%v')", p.rules[i].SQLRepr, string(data))
+		if rule.ReplaceNULLWith != nil {
+			rule.SQLRepr = fmt.Sprintf("COALESCE(%s, '%v')", rule.SQLRepr, rule.ReplaceNULLWith)
 		}
-		if p.rules[i].Order == "" {
-			p.rules[i].Order = p.order
+		if rule.Order == "" {
+			rule.Order = p.order
 		}
 	}
 }
@@ -184,10 +183,9 @@ func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err er
 		}
 	}
 	// replace null values
-	replacements := p.getNullReplacements()
-	for i := range result{
+	for i := range result {
 		if isNil(result[i]) {
-			result[i] = replacements[i]
+			result[i] = p.rules[i].ReplaceNULLWith
 		}
 	}
 	return
@@ -280,12 +278,4 @@ func (p *Paginator) getKeys() []string {
 		keys[i] = rule.Key
 	}
 	return keys
-}
-
-func (p *Paginator) getNullReplacements() []interface{} {
-	replacements := make([]interface{}, len(p.rules))
-	for i, rule := range p.rules {
-		replacements[i] = rule.ReplaceNULLWith
-	}
-	return replacements
 }
