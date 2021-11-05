@@ -7,7 +7,7 @@ type Rule struct {
 	Key             string
 	Order           Order
 	SQLRepr         string
-	ReplaceNULLWith interface{}
+	NULLReplacement interface{}
 }
 
 func (r *Rule) validate(dest interface{}) (err error) {

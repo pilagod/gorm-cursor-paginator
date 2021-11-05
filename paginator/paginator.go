@@ -131,8 +131,8 @@ func (p *Paginator) setup(db *gorm.DB, dest interface{}) {
 			sqlKey := p.parseSQLKey(dest, rule.Key)
 			rule.SQLRepr = fmt.Sprintf("%s.%s", sqlTable, sqlKey)
 		}
-		if rule.ReplaceNULLWith != nil {
-			rule.SQLRepr = fmt.Sprintf("COALESCE(%s, '%v')", rule.SQLRepr, rule.ReplaceNULLWith)
+		if rule.NULLReplacement != nil {
+			rule.SQLRepr = fmt.Sprintf("COALESCE(%s, '%v')", rule.SQLRepr, rule.NULLReplacement)
 		}
 		if rule.Order == "" {
 			rule.Order = p.order
@@ -185,7 +185,7 @@ func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err er
 	// replace null values
 	for i := range result {
 		if isNil(result[i]) {
-			result[i] = p.rules[i].ReplaceNULLWith
+			result[i] = p.rules[i].NULLReplacement
 		}
 	}
 	return

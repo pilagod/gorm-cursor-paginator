@@ -532,7 +532,7 @@ func (s *paginatorSuite) TestPaginateReplaceNULL() {
 		Rules: []Rule{
 			{
 				Key:             "Remark",
-				ReplaceNULLWith: "",
+				NULLReplacement: "",
 			},
 			{
 				Key: "ID",
