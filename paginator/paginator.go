@@ -120,18 +120,22 @@ func (p *Paginator) validate(dest interface{}) (err error) {
 func (p *Paginator) setup(db *gorm.DB, dest interface{}) {
 	var sqlTable string
 	for i := range p.rules {
-		if p.rules[i].SQLRepr == "" {
+		rule := &p.rules[i]
+		if rule.SQLRepr == "" {
 			if sqlTable == "" {
 				// https://stackoverflow.com/questions/51999441/how-to-get-a-table-name-from-a-model-in-gorm
 				stmt := &gorm.Statement{DB: db}
 				stmt.Parse(dest)
 				sqlTable = stmt.Schema.Table
 			}
-			sqlKey := p.parseSQLKey(dest, p.rules[i].Key)
-			p.rules[i].SQLRepr = fmt.Sprintf("%s.%s", sqlTable, sqlKey)
+			sqlKey := p.parseSQLKey(dest, rule.Key)
+			rule.SQLRepr = fmt.Sprintf("%s.%s", sqlTable, sqlKey)
 		}
-		if p.rules[i].Order == "" {
-			p.rules[i].Order = p.order
+		if rule.NULLReplacement != nil {
+			rule.SQLRepr = fmt.Sprintf("COALESCE(%s, '%v')", rule.SQLRepr, rule.NULLReplacement)
+		}
+		if rule.Order == "" {
+			rule.Order = p.order
 		}
 	}
 }
@@ -156,6 +160,18 @@ func (p *Paginator) parseSQLKey(dest interface{}, key string) string {
 	return strcase.ToSnake(f.Name)
 }
 
+// https://mangatmodi.medium.com/go-check-nil-interface-the-right-way-d142776edef1
+func isNil(i interface{}) bool {
+	if i == nil {
+		return true
+	}
+	switch reflect.TypeOf(i).Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+		return reflect.ValueOf(i).IsNil()
+	}
+	return false
+}
+
 func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err error) {
 	if p.isForward() {
 		if result, err = cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.After, dest); err != nil {
@@ -164,6 +180,12 @@ func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err er
 	} else if p.isBackward() {
 		if result, err = cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.Before, dest); err != nil {
 			err = ErrInvalidCursor
+		}
+	}
+	// replace null values
+	for i := range result {
+		if isNil(result[i]) {
+			result[i] = p.rules[i].NULLReplacement
 		}
 	}
 	return
