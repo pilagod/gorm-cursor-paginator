@@ -15,14 +15,14 @@ type encoderSuite struct {
 }
 
 func (s *encoderSuite) TestInvalidModel() {
-	e := NewEncoder("ID")
+	e := NewEncoder([]string{"ID"}, []interface{}{nil})
 	_, err := e.Encode(struct{}{})
 	s.Equal(ErrInvalidModel, err)
 }
 
 func (s *encoderSuite) TestInvalidModelFieldType() {
 	// https://stackoverflow.com/questions/33903552/what-input-will-cause-golangs-json-marshal-to-return-an-error
-	e := NewEncoder("ID")
+	e := NewEncoder([]string{"ID"}, []interface{}{nil})
 	_, err := e.Encode(
 		struct {
 			ID chan int
@@ -32,13 +32,13 @@ func (s *encoderSuite) TestInvalidModelFieldType() {
 }
 
 func (s *encoderSuite) TestZeroValue() {
-	e := NewEncoder("ID")
+	e := NewEncoder([]string{"ID"}, []interface{}{nil})
 	_, err := e.Encode(struct{ ID string }{})
 	s.Nil(err)
 }
 
 func (s *encoderSuite) TestZeroValuePtr() {
-	e := NewEncoder("ID")
+	e := NewEncoder([]string{"ID"}, []interface{}{nil})
 	_, err := e.Encode(struct{ ID *string }{})
 	s.Nil(err)
 }
