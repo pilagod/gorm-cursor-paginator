@@ -10,13 +10,15 @@ import (
 )
 
 // NewDecoder creates cursor decoder for model
-func NewDecoder(keys ...string) *Decoder {
-	return &Decoder{keys}
+func NewDecoder(keys []string, types []*reflect.Type) *Decoder {
+	return &Decoder{keys, types}
 }
 
 // Decoder cursor decoder
 type Decoder struct {
 	keys []string
+	// types are needed for handling of custom types
+	types []*reflect.Type
 }
 
 // Decode decodes cursor into values (without pointer) by referencing field type on model.
@@ -34,10 +36,18 @@ func (d *Decoder) Decode(cursor string, model interface{}) (fields []interface{}
 	if t, err := jd.Token(); err != nil || t != json.Delim('[') {
 		return nil, ErrInvalidCursor
 	}
-	for _, key := range d.keys {
-		// key is already validated at beginning
-		f, _ := util.ReflectType(model).FieldByName(key)
-		v := reflect.New(f.Type).Interface()
+	for i, key := range d.keys {
+		// prefer d.types[i] when set; this is needed for getting the right type for custom types
+		var t reflect.Type
+		if d.types[i] != nil {
+			t = *d.types[i]
+		} else {
+			// key is already validated at beginning
+			f, _ := util.ReflectType(model).FieldByName(key)
+			t = f.Type
+		}
+
+		v := reflect.New(t).Interface()
 		if err := jd.Decode(v); err != nil {
 			return nil, ErrInvalidCursor
 		}

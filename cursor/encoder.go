@@ -5,17 +5,20 @@ import (
 	"encoding/json"
 	"reflect"
 
+	"github.com/pilagod/gorm-cursor-paginator/v2/interfaces"
 	"github.com/pilagod/gorm-cursor-paginator/v2/internal/util"
 )
 
 // NewEncoder creates cursor encoder
-func NewEncoder(keys ...string) *Encoder {
-	return &Encoder{keys}
+func NewEncoder(keys []string, metas []interface{}) *Encoder {
+	return &Encoder{keys, metas}
 }
 
 // Encoder cursor encoder
 type Encoder struct {
 	keys []string
+	// metas are needed for handling of custom types
+	metas []interface{}
 }
 
 // Encode encodes model into cursor
@@ -38,7 +41,12 @@ func (e *Encoder) marshalJSON(model interface{}) ([]byte, error) {
 		if e.isNilable(f) && f.IsZero() {
 			fields[i] = nil
 		} else {
-			fields[i] = util.ReflectValue(f).Interface()
+			// fetch values from custom types
+			if ct, ok := util.ReflectValue(f).Interface().(interfaces.CustomTypePaginator); ok {
+				fields[i] = ct.GetCustomTypeValue(e.metas[i])
+			} else {
+				fields[i] = util.ReflectValue(f).Interface()
+			}
 		}
 	}
 	result, err := json.Marshal(fields)

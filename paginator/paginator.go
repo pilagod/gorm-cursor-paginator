@@ -134,6 +134,10 @@ func (p *Paginator) setup(db *gorm.DB, dest interface{}) {
 		if rule.NULLReplacement != nil {
 			rule.SQLRepr = fmt.Sprintf("COALESCE(%s, '%v')", rule.SQLRepr, rule.NULLReplacement)
 		}
+		// cast custom types to their real underlying SQL type
+		if rule.CustomType != nil {
+			rule.SQLRepr = fmt.Sprintf("(%s)::%s", rule.SQLRepr, rule.CustomType.SQLType)
+		}
 		if rule.Order == "" {
 			rule.Order = p.order
 		}
@@ -174,11 +178,11 @@ func isNil(i interface{}) bool {
 
 func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err error) {
 	if p.isForward() {
-		if result, err = cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.After, dest); err != nil {
+		if result, err = cursor.NewDecoder(p.getKeys(), p.getTypes()).Decode(*p.cursor.After, dest); err != nil {
 			err = ErrInvalidCursor
 		}
 	} else if p.isBackward() {
-		if result, err = cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.Before, dest); err != nil {
+		if result, err = cursor.NewDecoder(p.getKeys(), p.getTypes()).Decode(*p.cursor.Before, dest); err != nil {
 			err = ErrInvalidCursor
 		}
 	}
@@ -250,7 +254,7 @@ func (p *Paginator) buildCursorSQLQueryArgs(fields []interface{}) (args []interf
 }
 
 func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Cursor, err error) {
-	encoder := cursor.NewEncoder(p.getKeys()...)
+	encoder := cursor.NewEncoder(p.getKeys(), p.getMetas())
 	// encode after cursor
 	if p.isBackward() || hasMore {
 		c, err := encoder.Encode(elems.Index(elems.Len() - 1))
@@ -278,4 +282,26 @@ func (p *Paginator) getKeys() []string {
 		keys[i] = rule.Key
 	}
 	return keys
+}
+
+/* custom types */
+
+func (p *Paginator) getMetas() []interface{} {
+	metas := make([]interface{}, len(p.rules))
+	for i, rule := range p.rules {
+		if rule.CustomType != nil {
+			metas[i] = rule.CustomType.Meta
+		}
+	}
+	return metas
+}
+
+func (p *Paginator) getTypes() []*reflect.Type {
+	types := make([]*reflect.Type, len(p.rules))
+	for i, rule := range p.rules {
+		if rule.CustomType != nil {
+			types[i] = &rule.CustomType.Type
+		}
+	}
+	return types
 }
