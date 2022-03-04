@@ -1,11 +1,16 @@
 package paginator
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
+
+	"database/sql/driver"
 
 	"github.com/stretchr/testify/suite"
 	"gorm.io/driver/postgres"
@@ -22,6 +27,7 @@ type order struct {
 	ID        int       `gorm:"primaryKey"`
 	Remark    *string   `gorm:"type:varchar(30)"`
 	CreatedAt time.Time `gorm:"type:timestamp;not null"`
+	Data      JSON      `gorm:"type:jsonb"`
 }
 
 type item struct {
@@ -30,6 +36,48 @@ type item struct {
 	Remark  *string `gorm:"type:varchar(30)"`
 	OrderID int     `gorm:"type:integer;not null"`
 	Order   Order   `gorm:"foreignKey:OrderID"`
+}
+
+/* JSON type taken from https://gorm.io/docs/data_types.html */
+
+type JSON struct {
+	json.RawMessage
+}
+
+// Scan scan value into Jsonb, implements sql.Scanner interface
+func (j *JSON) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New(fmt.Sprint("Failed to unmarshal JSONB value:", value))
+	}
+
+	result := json.RawMessage{}
+	err := json.Unmarshal(bytes, &result)
+	*j = JSON{result}
+	return err
+}
+
+// Value return json value, implement driver.Valuer interface
+func (j JSON) Value() (driver.Value, error) {
+	return j.MarshalJSON()
+}
+
+func (j JSON) GetCustomTypeValue(meta interface{}) interface{} {
+	// The decoding & mapping logic should be implemented by custom type provider
+	d := map[string]interface{}{}
+	err := json.Unmarshal(j.RawMessage, &d)
+	if err != nil {
+		panic("TODO")
+	}
+
+	i := d[meta.(string)]
+
+	// remove quotes from string for SQL comparisons
+	if s, ok := i.(string); ok {
+		return strings.ReplaceAll(s, "\"", "")
+	}
+
+	return i
 }
 
 /* paginator suite */
@@ -69,8 +117,22 @@ func (s *paginatorSuite) givenOrders(numOrOrders interface{}) (orders []order) {
 	switch v := numOrOrders.(type) {
 	case int:
 		for i := 0; i < v; i++ {
+			// prepare JSON data
+			data, err := json.Marshal(map[string]interface{}{
+				"keyInt":    i,
+				"keyString": fmt.Sprintf("%d", i),
+			})
+			if err != nil {
+				panic(err.Error())
+			}
+			j := JSON{}
+			if err := j.Scan(data); err != nil {
+				panic(err.Error())
+			}
+
 			orders = append(orders, order{
 				CreatedAt: time.Now().Add(time.Duration(i) * time.Hour),
+				Data:      j,
 			})
 		}
 	case []order:
