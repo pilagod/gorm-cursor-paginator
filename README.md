@@ -8,6 +8,7 @@ A paginator doing cursor-based pagination based on [GORM](https://github.com/go-
 
 - Query extendable.
 - Multiple paging keys.
+- Pagination across custom types (e.g. JSON)
 - Paging rule customization for each key.
 - GORM `column` tag supported.
 - Error handling enhancement.
@@ -197,6 +198,19 @@ Default options used by paginator when not specified:
     > 2. If tag not found, convert struct field name to snake case.
 - `NULLReplacement`(v2.2.0): Replacement for NULL value when paginating by nullable column.<br/>
     > If you paginate by nullable column, you will encounter [NULLS { FIRST | LAST } problems](https://learnsql.com/blog/how-to-order-rows-with-nulls/). This option let you decide how to order rows with NULL value. For instance, we can set this value to `1970-01-01` for a nullable `date` column, to ensure rows with NULL date will be placed at head when order is ASC, or at tail when order is DESC.
+- `CustomType`: Extra information needed only when paginating across custom types (e.g. JSON). To support custom type pagination, the type needs to implement the `CustomTypePaginator` interface: 
+  ```go
+  type CustomTypePaginator interface {
+      // GetCustomTypeValue returns the value corresponding to the meta attribute inside the custom type.
+      GetCustomTypeValue(meta interface{}) interface{}
+  }
+  ```
+  and provide the following information:
+  - `Meta`: meta attribute inside the custom type. The paginator will pass this meta attribute to the `GetCustomTypeValue` function, which should return the actual value corresponding to the meta attribute. For JSON, meta would contain the JSON key of the element inside JSON to be used for pagination.
+  - `Type`: GoLang type of the meta attribute. 
+  - `SQLType`: SQL type of the meta attribute.
+
+  Also, when paginating across custom types, it is expected that the `SQLRepr` is set and contains the SQL query to get the meta attribute value.
 
 ## Changelog
 
