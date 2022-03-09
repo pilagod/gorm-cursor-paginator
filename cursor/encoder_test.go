@@ -88,7 +88,6 @@ func (s *decoderSuite) TestEncodeCustomTypes() {
 
 	for _, test := range testCases {
 		s.Run(test.name, func() {
-
 			e := NewEncoder([]EncoderField{{Key: "Data", Meta: "key"}})
 			c, err := e.Encode(struct{ Data MyType }{MyType{"key": test.value}})
 			s.Nil(err)
