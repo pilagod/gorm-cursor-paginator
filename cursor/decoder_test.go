@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"reflect"
-
 	"github.com/stretchr/testify/suite"
 )
 
@@ -66,78 +64,4 @@ func (s *decoderSuite) TestDecodeStructInvalidModel() {
 func (s *decoderSuite) TestDecodeStructInvalidCursor() {
 	err := NewDecoder([]DecoderField{{Key: "Value"}}).DecodeStruct("123", struct{ Value string }{})
 	s.Equal(ErrInvalidCursor, err)
-}
-
-/* decode custom types */
-
-func (s *decoderSuite) TestDecodeCustomTypes() {
-	type MyType map[string]interface{}
-
-	testCases := []struct {
-		name           string
-		cursor         string
-		typ            reflect.Type
-		expectedFields interface{}
-	}{
-		{
-			"nil int",
-			`[null]`,
-			reflect.PtrTo(reflect.TypeOf(0)),
-			[]interface{}{(*int)(nil)},
-		},
-		{
-			"nil string",
-			`[null]`,
-			reflect.PtrTo(reflect.TypeOf("")),
-			[]interface{}{(*string)(nil)},
-		},
-		{
-			"nil float",
-			`[null]`,
-			reflect.PtrTo(reflect.TypeOf(0.1)),
-			[]interface{}{(*float64)(nil)},
-		},
-		{
-			"nil bool",
-			`[null]`,
-			reflect.PtrTo(reflect.TypeOf(false)),
-			[]interface{}{(*bool)(nil)},
-		},
-		{
-			"int",
-			`[10]`,
-			reflect.TypeOf(0),
-			[]interface{}{10},
-		},
-		{
-			"float",
-			`[1.5]`,
-			reflect.TypeOf(0.0),
-			[]interface{}{1.5},
-		},
-		{
-			"string",
-			`["A"]`,
-			reflect.TypeOf(""),
-			[]interface{}{"A"},
-		},
-		{
-			"boolean",
-			`[false]`,
-			reflect.TypeOf(false),
-			[]interface{}{false},
-		},
-	}
-
-	for _, test := range testCases {
-		s.Run(test.name, func() {
-			c := base64.StdEncoding.EncodeToString([]byte(test.cursor))
-			fields, err := NewDecoder(
-				[]DecoderField{{Key: "Data", Type: &test.typ}},
-			).Decode(c, struct{ Data MyType }{})
-
-			s.Nil(err)
-			s.Assert().Equal(test.expectedFields, fields)
-		})
-	}
 }

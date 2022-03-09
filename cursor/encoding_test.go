@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"reflect"
+
 	"github.com/stretchr/testify/suite"
 )
 
@@ -288,4 +290,80 @@ func (s *encodingSuite) decodeValuePtr(m interface{}, c string) (interface{}, er
 		s.FailNow("invalid value model: %v, fields %v", m, fields)
 	}
 	return fields[0], nil
+}
+
+/* Custom Types Encoding Decoding */
+
+type MyJSON map[string]interface{}
+
+func (t MyJSON) GetCustomTypeValue(meta interface{}) interface{} {
+	return t[meta.(string)]
+}
+
+func (s *encodingSuite) TestEncodeDecodeCustomTypes() {
+	testCases := []struct {
+		name  string
+		typ   reflect.Type
+		value interface{}
+	}{
+		{
+			"nil int",
+			reflect.PtrTo(reflect.TypeOf(0)),
+			(*int)(nil),
+		},
+		{
+			"nil float",
+			reflect.PtrTo(reflect.TypeOf(0.0)),
+			(*float64)(nil),
+		},
+		{
+			"nil string",
+			reflect.PtrTo(reflect.TypeOf("")),
+			(*string)(nil),
+		},
+		{
+			"nil bool",
+			reflect.PtrTo(reflect.TypeOf(true)),
+			(*bool)(nil),
+		},
+		{
+			"int",
+			reflect.TypeOf(0),
+			10,
+		},
+		{
+			"float",
+			reflect.TypeOf(0.0),
+			1.5,
+		},
+		{
+			"string",
+			reflect.TypeOf(""),
+			"A",
+		},
+		{
+			"boolean",
+			reflect.TypeOf(false),
+			false,
+		},
+	}
+
+	for _, test := range testCases {
+		s.Run(test.name, func() {
+			// encode value
+			c, err := NewEncoder([]EncoderField{
+				{Key: "Data", Meta: "key"},
+			}).Encode(struct{ Data MyJSON }{MyJSON{"key": test.value}})
+			s.Nil(err)
+
+			// decode value
+			v, err := NewDecoder([]DecoderField{
+				{Key: "Data", Type: &test.typ},
+			}).Decode(c, struct{ Data MyJSON }{})
+			s.Nil(err)
+
+			// make sure they match
+			s.Equal(test.value, v[0])
+		})
+	}
 }
