@@ -17,14 +17,14 @@ type encoderSuite struct {
 }
 
 func (s *encoderSuite) TestInvalidModel() {
-	e := NewEncoder([]string{"ID"}, []interface{}{nil})
+	e := NewEncoder([]EncoderField{{Key: "ID"}})
 	_, err := e.Encode(struct{}{})
 	s.Equal(ErrInvalidModel, err)
 }
 
 func (s *encoderSuite) TestInvalidModelFieldType() {
 	// https://stackoverflow.com/questions/33903552/what-input-will-cause-golangs-json-marshal-to-return-an-error
-	e := NewEncoder([]string{"ID"}, []interface{}{nil})
+	e := NewEncoder([]EncoderField{{Key: "ID"}})
 	_, err := e.Encode(
 		struct {
 			ID chan int
@@ -34,13 +34,13 @@ func (s *encoderSuite) TestInvalidModelFieldType() {
 }
 
 func (s *encoderSuite) TestZeroValue() {
-	e := NewEncoder([]string{"ID"}, []interface{}{nil})
+	e := NewEncoder([]EncoderField{{Key: "ID"}})
 	_, err := e.Encode(struct{ ID string }{})
 	s.Nil(err)
 }
 
 func (s *encoderSuite) TestZeroValuePtr() {
-	e := NewEncoder([]string{"ID"}, []interface{}{nil})
+	e := NewEncoder([]EncoderField{{Key: "ID"}})
 	_, err := e.Encode(struct{ ID *string }{})
 	s.Nil(err)
 }
@@ -89,7 +89,7 @@ func (s *decoderSuite) TestEncodeCustomTypes() {
 	for _, test := range testCases {
 		s.Run(test.name, func() {
 
-			e := NewEncoder([]string{"Data"}, []interface{}{"key"})
+			e := NewEncoder([]EncoderField{{Key: "Data", Meta: "key"}})
 			c, err := e.Encode(struct{ Data MyType }{MyType{"key": test.value}})
 			s.Nil(err)
 

@@ -178,11 +178,11 @@ func isNil(i interface{}) bool {
 
 func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err error) {
 	if p.isForward() {
-		if result, err = cursor.NewDecoder(p.getKeys(), p.getTypes()).Decode(*p.cursor.After, dest); err != nil {
+		if result, err = cursor.NewDecoder(p.getDecoderFields()).Decode(*p.cursor.After, dest); err != nil {
 			err = ErrInvalidCursor
 		}
 	} else if p.isBackward() {
-		if result, err = cursor.NewDecoder(p.getKeys(), p.getTypes()).Decode(*p.cursor.Before, dest); err != nil {
+		if result, err = cursor.NewDecoder(p.getDecoderFields()).Decode(*p.cursor.Before, dest); err != nil {
 			err = ErrInvalidCursor
 		}
 	}
@@ -254,7 +254,7 @@ func (p *Paginator) buildCursorSQLQueryArgs(fields []interface{}) (args []interf
 }
 
 func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Cursor, err error) {
-	encoder := cursor.NewEncoder(p.getKeys(), p.getMetas())
+	encoder := cursor.NewEncoder(p.getEncoderFields())
 	// encode after cursor
 	if p.isBackward() || hasMore {
 		c, err := encoder.Encode(elems.Index(elems.Len() - 1))
@@ -285,23 +285,24 @@ func (p *Paginator) getKeys() []string {
 }
 
 /* custom types */
-
-func (p *Paginator) getMetas() []interface{} {
-	metas := make([]interface{}, len(p.rules))
+func (p *Paginator) getEncoderFields() []cursor.EncoderField {
+	fields := make([]cursor.EncoderField, len(p.rules))
 	for i, rule := range p.rules {
+		fields[i].Key = rule.Key
 		if rule.CustomType != nil {
-			metas[i] = rule.CustomType.Meta
+			fields[i].Meta = rule.CustomType.Meta
 		}
 	}
-	return metas
+	return fields
 }
 
-func (p *Paginator) getTypes() []*reflect.Type {
-	types := make([]*reflect.Type, len(p.rules))
+func (p *Paginator) getDecoderFields() []cursor.DecoderField {
+	fields := make([]cursor.DecoderField, len(p.rules))
 	for i, rule := range p.rules {
+		fields[i].Key = rule.Key
 		if rule.CustomType != nil {
-			types[i] = &rule.CustomType.Type
+			fields[i].Type = &rule.CustomType.Type
 		}
 	}
-	return types
+	return fields
 }

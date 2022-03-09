@@ -20,12 +20,12 @@ type decoderSuite struct {
 /* decode */
 
 func (s *decoderSuite) TestDecodeKeyNotMatchedModel() {
-	_, err := NewDecoder([]string{"Key"}, []*reflect.Type{nil}).Decode("cursor", struct{ ID string }{})
+	_, err := NewDecoder([]DecoderField{{Key: "Key"}}).Decode("cursor", struct{ ID string }{})
 	s.Equal(ErrInvalidModel, err)
 }
 
 func (s *decoderSuite) TestDecodeNonStructModel() {
-	_, err := NewDecoder([]string{"Key"}, []*reflect.Type{nil}).Decode("cursor", 123)
+	_, err := NewDecoder([]DecoderField{{Key: "Key"}}).Decode("cursor", 123)
 	s.Equal(ErrInvalidModel, err)
 }
 
@@ -33,7 +33,7 @@ func (s *decoderSuite) TestDecodeInvalidCursorFormat() {
 	type model struct {
 		Value string
 	}
-	d := NewDecoder([]string{"Value"}, []*reflect.Type{nil})
+	d := NewDecoder([]DecoderField{{Key: "Value"}})
 
 	// cursor must be a base64 encoded string
 	_, err := d.Decode("123", model{})
@@ -51,20 +51,20 @@ func (s *decoderSuite) TestDecodeInvalidCursorFormat() {
 }
 
 func (s *decoderSuite) TestDecodeInvalidCursorType() {
-	c, _ := NewEncoder([]string{"Value"}, []interface{}{nil}).Encode(struct{ Value int }{123})
-	_, err := NewDecoder([]string{"Value"}, []*reflect.Type{nil}).Decode(c, struct{ Value string }{})
+	c, _ := NewEncoder([]EncoderField{{Key: "Value"}}).Encode(struct{ Value int }{123})
+	_, err := NewDecoder([]DecoderField{{Key: "Value"}}).Decode(c, struct{ Value string }{})
 	s.Equal(ErrInvalidCursor, err)
 }
 
 /* decode struct */
 
 func (s *decoderSuite) TestDecodeStructInvalidModel() {
-	err := NewDecoder([]string{"Value"}, []*reflect.Type{nil}).DecodeStruct("123", struct{ ID string }{})
+	err := NewDecoder([]DecoderField{{Key: "Value"}}).DecodeStruct("123", struct{ ID string }{})
 	s.Equal(ErrInvalidModel, err)
 }
 
 func (s *decoderSuite) TestDecodeStructInvalidCursor() {
-	err := NewDecoder([]string{"Value"}, []*reflect.Type{nil}).DecodeStruct("123", struct{ Value string }{})
+	err := NewDecoder([]DecoderField{{Key: "Value"}}).DecodeStruct("123", struct{ Value string }{})
 	s.Equal(ErrInvalidCursor, err)
 }
 
@@ -133,8 +133,7 @@ func (s *decoderSuite) TestDecodeCustomTypes() {
 		s.Run(test.name, func() {
 			c := base64.StdEncoding.EncodeToString([]byte(test.cursor))
 			fields, err := NewDecoder(
-				[]string{"Data"},
-				[]*reflect.Type{&test.typ},
+				[]DecoderField{{Key: "Data", Type: &test.typ}},
 			).Decode(c, struct{ Data MyType }{})
 
 			s.Nil(err)
