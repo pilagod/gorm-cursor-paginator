@@ -567,6 +567,7 @@ func (s *paginatorSuite) TestPaginateReplaceNULL() {
 func (s *paginatorSuite) TestPaginateCustomTypeInt() {
 	s.givenOrders(9)
 
+	numeric := "numeric"
 	cfg := &Config{
 		Limit: 3,
 		Rules: []Rule{
@@ -574,10 +575,10 @@ func (s *paginatorSuite) TestPaginateCustomTypeInt() {
 				Key:     "Data",
 				Order:   DESC,
 				SQLRepr: "data #>> '{keyInt}'",
+				SQLType: &numeric,
 				CustomType: &CustomType{
-					Meta:    "keyInt",
-					Type:    reflect.TypeOf(0),
-					SQLType: "numeric",
+					Meta: "keyInt",
+					Type: reflect.TypeOf(0),
 				},
 			},
 		},
@@ -618,6 +619,7 @@ func (s *paginatorSuite) TestPaginateCustomTypeInt() {
 func (s *paginatorSuite) TestPaginateCustomTypeString() {
 	s.givenOrders(9)
 
+	text := "text"
 	cfg := &Config{
 		Limit: 3,
 		Rules: []Rule{
@@ -625,10 +627,10 @@ func (s *paginatorSuite) TestPaginateCustomTypeString() {
 				Key:     "Data",
 				Order:   DESC,
 				SQLRepr: "data #>> '{keyString}'",
+				SQLType: &text,
 				CustomType: &CustomType{
-					Meta:    "keyString",
-					Type:    reflect.TypeOf(""),
-					SQLType: "text",
+					Meta: "keyString",
+					Type: reflect.TypeOf(""),
 				},
 			},
 		},

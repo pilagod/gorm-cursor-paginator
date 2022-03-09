@@ -134,9 +134,9 @@ func (p *Paginator) setup(db *gorm.DB, dest interface{}) {
 		if rule.NULLReplacement != nil {
 			rule.SQLRepr = fmt.Sprintf("COALESCE(%s, '%v')", rule.SQLRepr, rule.NULLReplacement)
 		}
-		// cast custom types to their real underlying SQL type
-		if rule.CustomType != nil {
-			rule.SQLRepr = fmt.Sprintf("CAST( %s AS %s )", rule.SQLRepr, rule.CustomType.SQLType)
+		// cast to the underlying SQL type
+		if rule.SQLType != nil {
+			rule.SQLRepr = fmt.Sprintf("CAST( %s AS %s )", rule.SQLRepr, *rule.SQLType)
 		}
 		if rule.Order == "" {
 			rule.Order = p.order

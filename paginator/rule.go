@@ -11,15 +11,15 @@ type Rule struct {
 	Key             string
 	Order           Order
 	SQLRepr         string
+	SQLType         *string
 	NULLReplacement interface{}
 	CustomType      *CustomType
 }
 
 // CustomType for paginator. It provides extra info needed to paginate across custom types (e.g. JSON)
 type CustomType struct {
-	Meta    interface{}
-	Type    reflect.Type
-	SQLType string
+	Meta interface{}
+	Type reflect.Type
 }
 
 func (r *Rule) validate(dest interface{}) (err error) {
