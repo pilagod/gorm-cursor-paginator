@@ -198,9 +198,9 @@ Default options used by paginator when not specified:
     > 2. If tag not found, convert struct field name to snake case.
 - `NULLReplacement`(v2.2.0): Replacement for NULL value when paginating by nullable column.<br/>
     > If you paginate by nullable column, you will encounter [NULLS { FIRST | LAST } problems](https://learnsql.com/blog/how-to-order-rows-with-nulls/). This option let you decide how to order rows with NULL value. For instance, we can set this value to `1970-01-01` for a nullable `date` column, to ensure rows with NULL date will be placed at head when order is ASC, or at tail when order is DESC.
-- `CustomType`: Extra information needed only when paginating across custom types (e.g. JSON). To support custom type pagination, the type needs to implement the `CustomTypePaginator` interface: 
+- `CustomType`: Extra information needed only when paginating across custom types (e.g. JSON). To support custom type pagination, the type needs to implement the `CustomType` interface:
   ```go
-  type CustomTypePaginator interface {
+  type CustomType interface {
       // GetCustomTypeValue returns the value corresponding to the meta attribute inside the custom type.
       GetCustomTypeValue(meta interface{}) interface{}
   }

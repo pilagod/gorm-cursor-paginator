@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"github.com/pilagod/gorm-cursor-paginator/v2/interfaces"
 	"github.com/pilagod/gorm-cursor-paginator/v2/internal/util"
 )
 
@@ -47,7 +46,7 @@ func (e *Encoder) marshalJSON(model interface{}) ([]byte, error) {
 			fields[i] = nil
 		} else {
 			// fetch values from custom types
-			if ct, ok := util.ReflectValue(f).Interface().(interfaces.CustomTypePaginator); ok {
+			if ct, ok := util.ReflectValue(f).Interface().(CustomType); ok {
 				fields[i] = ct.GetCustomTypeValue(field.Meta)
 			} else {
 				fields[i] = util.ReflectValue(f).Interface()
