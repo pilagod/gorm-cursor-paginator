@@ -136,7 +136,7 @@ func (p *Paginator) setup(db *gorm.DB, dest interface{}) {
 		}
 		// cast custom types to their real underlying SQL type
 		if rule.CustomType != nil {
-			rule.SQLRepr = fmt.Sprintf("(%s)::%s", rule.SQLRepr, rule.CustomType.SQLType)
+			rule.SQLRepr = fmt.Sprintf("CAST( %s AS %s )", rule.SQLRepr, rule.CustomType.SQLType)
 		}
 		if rule.Order == "" {
 			rule.Order = p.order
