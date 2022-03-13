@@ -31,6 +31,15 @@ func (s *encoderSuite) TestInvalidModelFieldType() {
 	s.Equal(ErrInvalidModel, err)
 }
 
+func (s *encoderSuite) TestGetCustomTypeValueError() {
+	// meta should be string for MyJSON; hence -1 will error
+	e := NewEncoder([]EncoderField{
+		{Key: "Data", Meta: -1},
+	})
+	_, err := e.Encode(struct{ Data MyJSON }{MyJSON{"key": "value"}})
+	s.Equal(MyJSONError, err)
+}
+
 func (s *encoderSuite) TestZeroValue() {
 	e := NewEncoder([]EncoderField{{Key: "ID"}})
 	_, err := e.Encode(struct{ ID string }{})

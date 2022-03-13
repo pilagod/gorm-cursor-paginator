@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"errors"
 	"reflect"
 
 	"github.com/stretchr/testify/suite"
@@ -296,8 +297,14 @@ func (s *encodingSuite) decodeValuePtr(m interface{}, c string) (interface{}, er
 
 type MyJSON map[string]interface{}
 
-func (t MyJSON) GetCustomTypeValue(meta interface{}) interface{} {
-	return t[meta.(string)]
+var MyJSONError = errors.New("meta should be string")
+
+func (t MyJSON) GetCustomTypeValue(meta interface{}) (interface{}, error) {
+	key, ok := meta.(string)
+	if !ok {
+		return nil, MyJSONError
+	}
+	return t[key], nil
 }
 
 func (s *encodingSuite) TestEncodeDecodeCustomTypes() {

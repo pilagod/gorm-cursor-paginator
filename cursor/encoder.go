@@ -47,7 +47,11 @@ func (e *Encoder) marshalJSON(model interface{}) ([]byte, error) {
 		} else {
 			// fetch values from custom types
 			if ct, ok := util.ReflectValue(f).Interface().(CustomType); ok {
-				fields[i] = ct.GetCustomTypeValue(field.Meta)
+				value, err := ct.GetCustomTypeValue(field.Meta)
+				if err != nil {
+					return nil, err
+				}
+				fields[i] = value
 			} else {
 				fields[i] = util.ReflectValue(f).Interface()
 			}

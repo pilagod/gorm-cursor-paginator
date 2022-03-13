@@ -62,22 +62,22 @@ func (j JSON) Value() (driver.Value, error) {
 	return j.MarshalJSON()
 }
 
-func (j JSON) GetCustomTypeValue(meta interface{}) interface{} {
+func (j JSON) GetCustomTypeValue(meta interface{}) (interface{}, error) {
 	// The decoding & mapping logic should be implemented by custom type provider
 	d := map[string]interface{}{}
 	err := json.Unmarshal(j.RawMessage, &d)
 	if err != nil {
-		panic("TODO")
+		return nil, errors.New("json unmarshalling failed")
 	}
 
 	i := d[meta.(string)]
 
 	// remove quotes from string for SQL comparisons
 	if s, ok := i.(string); ok {
-		return strings.ReplaceAll(s, "\"", "")
+		return strings.ReplaceAll(s, "\"", ""), nil
 	}
 
-	return i
+	return i, nil
 }
 
 /* paginator suite */

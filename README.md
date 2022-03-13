@@ -204,7 +204,7 @@ Default options used by paginator when not specified:
   ```go
   type CustomType interface {
       // GetCustomTypeValue returns the value corresponding to the meta attribute inside the custom type.
-      GetCustomTypeValue(meta interface{}) interface{}
+      GetCustomTypeValue(meta interface{}) (interface{}, error)
   }
   ```
   and provide the following information:
