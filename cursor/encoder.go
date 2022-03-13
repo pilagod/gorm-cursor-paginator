@@ -18,7 +18,7 @@ type Encoder struct {
 	fields []EncoderField
 }
 
-// EncoderField contains information about one decoder field.
+// EncoderField contains information about one encoder field.
 type EncoderField struct {
 	Key string
 	// metas are needed for handling of custom types
