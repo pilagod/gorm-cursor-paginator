@@ -41,7 +41,7 @@ func (d *Decoder) Decode(cursor string, model interface{}) (fields []interface{}
 		return nil, ErrInvalidCursor
 	}
 	for _, field := range d.fields {
-		// prefer d.types[i] when set; this is needed for getting the right type for custom types
+		// prefer field.Type when set; this is needed for getting the right type for custom types
 		var t reflect.Type
 		if field.Type != nil {
 			t = *field.Type
