@@ -215,6 +215,11 @@ Default options used by paginator when not specified:
 
 ## Changelog
 
+### v2.3.0
+
+- Add `CustomType` to `paginator.Rule` to support [custom data types](https://gorm.io/docs/data_types.html), credited to [@nikicc](https://github.com/nikicc).
+> There are some adjustments to the signatures of `cursor.NewEncoder` and `cursor.NewDecoder`. Be careful when upgrading if you use them directly.
+
 ### v2.2.0
 
 - Add `NULLReplacement` to `paginator.Rule` to overcome [NULLS { FIRST | LAST } problems](https://learnsql.com/blog/how-to-order-rows-with-nulls/), credit to [@nikicc](https://github.com/nikicc).
