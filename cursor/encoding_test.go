@@ -4,6 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"errors"
+	"reflect"
+
 	"github.com/stretchr/testify/suite"
 )
 
@@ -169,26 +172,35 @@ type multipleModel struct {
 	CreatedAt *time.Time
 }
 
-func (multipleModel) Keys() []string {
-	return []string{
-		"ID",
-		"Name",
-		"CreatedAt",
+func (multipleModel) DecoderFields() []DecoderField {
+	return []DecoderField{
+		{Key: "ID"},
+		{Key: "Name"},
+		{Key: "CreatedAt"},
+	}
+}
+
+func (multipleModel) EncoderFields() []EncoderField {
+	return []EncoderField{
+		{Key: "ID"},
+		{Key: "Name"},
+		{Key: "CreatedAt"},
 	}
 }
 
 func (s *encodingSuite) TestMultipleFields() {
-	keys := multipleModel{}.Keys()
+	encoderFields := multipleModel{}.EncoderFields()
+	decoderFields := multipleModel{}.DecoderFields()
 
 	t := time.Now()
-	c, err := NewEncoder(keys...).Encode(multipleModel{
+	c, err := NewEncoder(encoderFields).Encode(multipleModel{
 		ID:        123,
 		Name:      "Hello",
 		CreatedAt: &t,
 	})
 	s.Nil(err)
 
-	fields, err := NewDecoder(keys...).Decode(c, multipleModel{})
+	fields, err := NewDecoder(decoderFields).Decode(c, multipleModel{})
 	s.Nil(err)
 
 	s.Len(fields, 3)
@@ -198,12 +210,13 @@ func (s *encodingSuite) TestMultipleFields() {
 }
 
 func (s *encoderSuite) TestMultipleFieldsWithZeroValue() {
-	keys := multipleModel{}.Keys()
+	encoderFields := multipleModel{}.EncoderFields()
+	decoderFields := multipleModel{}.DecoderFields()
 
-	c, err := NewEncoder(keys...).Encode(multipleModel{})
+	c, err := NewEncoder(encoderFields).Encode(multipleModel{})
 	s.Nil(err)
 
-	fields, err := NewDecoder(keys...).Decode(c, multipleModel{})
+	fields, err := NewDecoder(decoderFields).Decode(c, multipleModel{})
 	s.Nil(err)
 
 	s.Equal(0, fields[0])
@@ -214,10 +227,11 @@ func (s *encoderSuite) TestMultipleFieldsWithZeroValue() {
 /* decode struct */
 
 func (s *encodingSuite) TestMultipleFieldsToStruct() {
-	keys := multipleModel{}.Keys()
+	encoderFields := multipleModel{}.EncoderFields()
+	decoderFields := multipleModel{}.DecoderFields()
 
 	t := time.Now()
-	c, err := NewEncoder(keys...).Encode(multipleModel{
+	c, err := NewEncoder(encoderFields).Encode(multipleModel{
 		ID:        123,
 		Name:      "Hello",
 		CreatedAt: &t,
@@ -225,7 +239,7 @@ func (s *encodingSuite) TestMultipleFieldsToStruct() {
 	s.Nil(err)
 
 	var model multipleModel
-	err = NewDecoder(keys...).DecodeStruct(c, &model)
+	err = NewDecoder(decoderFields).DecodeStruct(c, &model)
 	s.Nil(err)
 
 	s.Equal(123, model.ID)
@@ -234,13 +248,14 @@ func (s *encodingSuite) TestMultipleFieldsToStruct() {
 }
 
 func (s *encoderSuite) TestMultipleFieldsToStructWithZeroValue() {
-	keys := multipleModel{}.Keys()
+	encoderFields := multipleModel{}.EncoderFields()
+	decoderFields := multipleModel{}.DecoderFields()
 
-	c, err := NewEncoder(keys...).Encode(multipleModel{})
+	c, err := NewEncoder(encoderFields).Encode(multipleModel{})
 	s.Nil(err)
 
 	var model multipleModel
-	err = NewDecoder(keys...).DecodeStruct(c, &model)
+	err = NewDecoder(decoderFields).DecodeStruct(c, &model)
 	s.Nil(err)
 
 	s.Equal(0, model.ID)
@@ -249,15 +264,15 @@ func (s *encoderSuite) TestMultipleFieldsToStructWithZeroValue() {
 }
 
 func (s *encodingSuite) encodeValue(v interface{}) (string, error) {
-	return NewEncoder("Value").Encode(v)
+	return NewEncoder([]EncoderField{{Key: "Value"}}).Encode(v)
 }
 
 func (s *encodingSuite) encodeValuePtr(v interface{}) (string, error) {
-	return NewEncoder("ValuePtr").Encode(v)
+	return NewEncoder([]EncoderField{{Key: "ValuePtr"}}).Encode(v)
 }
 
 func (s *encodingSuite) decodeValue(m interface{}, c string) (interface{}, error) {
-	fields, err := NewDecoder("Value").Decode(c, m)
+	fields, err := NewDecoder([]DecoderField{{Key: "Value"}}).Decode(c, m)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +283,7 @@ func (s *encodingSuite) decodeValue(m interface{}, c string) (interface{}, error
 }
 
 func (s *encodingSuite) decodeValuePtr(m interface{}, c string) (interface{}, error) {
-	fields, err := NewDecoder("ValuePtr").Decode(c, m)
+	fields, err := NewDecoder([]DecoderField{{Key: "ValuePtr"}}).Decode(c, m)
 	if err != nil {
 		return nil, err
 	}
@@ -276,4 +291,86 @@ func (s *encodingSuite) decodeValuePtr(m interface{}, c string) (interface{}, er
 		s.FailNow("invalid value model: %v, fields %v", m, fields)
 	}
 	return fields[0], nil
+}
+
+/* Custom Types Encoding Decoding */
+
+type MyJSON map[string]interface{}
+
+var MyJSONError = errors.New("meta should be string")
+
+func (t MyJSON) GetCustomTypeValue(meta interface{}) (interface{}, error) {
+	key, ok := meta.(string)
+	if !ok {
+		return nil, MyJSONError
+	}
+	return t[key], nil
+}
+
+func (s *encodingSuite) TestEncodeDecodeCustomTypes() {
+	testCases := []struct {
+		name  string
+		typ   reflect.Type
+		value interface{}
+	}{
+		{
+			"nil int",
+			reflect.PtrTo(reflect.TypeOf(0)),
+			(*int)(nil),
+		},
+		{
+			"nil float",
+			reflect.PtrTo(reflect.TypeOf(0.0)),
+			(*float64)(nil),
+		},
+		{
+			"nil string",
+			reflect.PtrTo(reflect.TypeOf("")),
+			(*string)(nil),
+		},
+		{
+			"nil bool",
+			reflect.PtrTo(reflect.TypeOf(true)),
+			(*bool)(nil),
+		},
+		{
+			"int",
+			reflect.TypeOf(0),
+			10,
+		},
+		{
+			"float",
+			reflect.TypeOf(0.0),
+			1.5,
+		},
+		{
+			"string",
+			reflect.TypeOf(""),
+			"A",
+		},
+		{
+			"boolean",
+			reflect.TypeOf(false),
+			false,
+		},
+	}
+
+	for _, test := range testCases {
+		s.Run(test.name, func() {
+			// encode value
+			c, err := NewEncoder([]EncoderField{
+				{Key: "Data", Meta: "key"},
+			}).Encode(struct{ Data MyJSON }{MyJSON{"key": test.value}})
+			s.Nil(err)
+
+			// decode value
+			v, err := NewDecoder([]DecoderField{
+				{Key: "Data", Type: &test.typ},
+			}).Decode(c, struct{ Data MyJSON }{})
+			s.Nil(err)
+
+			// make sure they match
+			s.Equal(test.value, v[0])
+		})
+	}
 }

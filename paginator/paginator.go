@@ -134,6 +134,10 @@ func (p *Paginator) setup(db *gorm.DB, dest interface{}) {
 		if rule.NULLReplacement != nil {
 			rule.SQLRepr = fmt.Sprintf("COALESCE(%s, '%v')", rule.SQLRepr, rule.NULLReplacement)
 		}
+		// cast to the underlying SQL type
+		if rule.SQLType != nil {
+			rule.SQLRepr = fmt.Sprintf("CAST( %s AS %s )", rule.SQLRepr, *rule.SQLType)
+		}
 		if rule.Order == "" {
 			rule.Order = p.order
 		}
@@ -174,11 +178,11 @@ func isNil(i interface{}) bool {
 
 func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err error) {
 	if p.isForward() {
-		if result, err = cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.After, dest); err != nil {
+		if result, err = cursor.NewDecoder(p.getDecoderFields()).Decode(*p.cursor.After, dest); err != nil {
 			err = ErrInvalidCursor
 		}
 	} else if p.isBackward() {
-		if result, err = cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.Before, dest); err != nil {
+		if result, err = cursor.NewDecoder(p.getDecoderFields()).Decode(*p.cursor.Before, dest); err != nil {
 			err = ErrInvalidCursor
 		}
 	}
@@ -250,7 +254,7 @@ func (p *Paginator) buildCursorSQLQueryArgs(fields []interface{}) (args []interf
 }
 
 func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Cursor, err error) {
-	encoder := cursor.NewEncoder(p.getKeys()...)
+	encoder := cursor.NewEncoder(p.getEncoderFields())
 	// encode after cursor
 	if p.isBackward() || hasMore {
 		c, err := encoder.Encode(elems.Index(elems.Len() - 1))
@@ -270,12 +274,25 @@ func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Curs
 	return
 }
 
-/* rules */
-
-func (p *Paginator) getKeys() []string {
-	keys := make([]string, len(p.rules))
+/* custom types */
+func (p *Paginator) getEncoderFields() []cursor.EncoderField {
+	fields := make([]cursor.EncoderField, len(p.rules))
 	for i, rule := range p.rules {
-		keys[i] = rule.Key
+		fields[i].Key = rule.Key
+		if rule.CustomType != nil {
+			fields[i].Meta = rule.CustomType.Meta
+		}
 	}
-	return keys
+	return fields
+}
+
+func (p *Paginator) getDecoderFields() []cursor.DecoderField {
+	fields := make([]cursor.DecoderField, len(p.rules))
+	for i, rule := range p.rules {
+		fields[i].Key = rule.Key
+		if rule.CustomType != nil {
+			fields[i].Type = &rule.CustomType.Type
+		}
+	}
+	return fields
 }

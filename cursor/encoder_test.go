@@ -15,14 +15,14 @@ type encoderSuite struct {
 }
 
 func (s *encoderSuite) TestInvalidModel() {
-	e := NewEncoder("ID")
+	e := NewEncoder([]EncoderField{{Key: "ID"}})
 	_, err := e.Encode(struct{}{})
 	s.Equal(ErrInvalidModel, err)
 }
 
 func (s *encoderSuite) TestInvalidModelFieldType() {
 	// https://stackoverflow.com/questions/33903552/what-input-will-cause-golangs-json-marshal-to-return-an-error
-	e := NewEncoder("ID")
+	e := NewEncoder([]EncoderField{{Key: "ID"}})
 	_, err := e.Encode(
 		struct {
 			ID chan int
@@ -31,14 +31,23 @@ func (s *encoderSuite) TestInvalidModelFieldType() {
 	s.Equal(ErrInvalidModel, err)
 }
 
+func (s *encoderSuite) TestGetCustomTypeValueError() {
+	// meta should be string for MyJSON; hence -1 will error
+	e := NewEncoder([]EncoderField{
+		{Key: "Data", Meta: -1},
+	})
+	_, err := e.Encode(struct{ Data MyJSON }{MyJSON{"key": "value"}})
+	s.Equal(MyJSONError, err)
+}
+
 func (s *encoderSuite) TestZeroValue() {
-	e := NewEncoder("ID")
+	e := NewEncoder([]EncoderField{{Key: "ID"}})
 	_, err := e.Encode(struct{ ID string }{})
 	s.Nil(err)
 }
 
 func (s *encoderSuite) TestZeroValuePtr() {
-	e := NewEncoder("ID")
+	e := NewEncoder([]EncoderField{{Key: "ID"}})
 	_, err := e.Encode(struct{ ID *string }{})
 	s.Nil(err)
 }

@@ -18,12 +18,12 @@ type decoderSuite struct {
 /* decode */
 
 func (s *decoderSuite) TestDecodeKeyNotMatchedModel() {
-	_, err := NewDecoder("Key").Decode("cursor", struct{ ID string }{})
+	_, err := NewDecoder([]DecoderField{{Key: "Key"}}).Decode("cursor", struct{ ID string }{})
 	s.Equal(ErrInvalidModel, err)
 }
 
 func (s *decoderSuite) TestDecodeNonStructModel() {
-	_, err := NewDecoder("Key").Decode("cursor", 123)
+	_, err := NewDecoder([]DecoderField{{Key: "Key"}}).Decode("cursor", 123)
 	s.Equal(ErrInvalidModel, err)
 }
 
@@ -31,7 +31,7 @@ func (s *decoderSuite) TestDecodeInvalidCursorFormat() {
 	type model struct {
 		Value string
 	}
-	d := NewDecoder("Value")
+	d := NewDecoder([]DecoderField{{Key: "Value"}})
 
 	// cursor must be a base64 encoded string
 	_, err := d.Decode("123", model{})
@@ -49,19 +49,19 @@ func (s *decoderSuite) TestDecodeInvalidCursorFormat() {
 }
 
 func (s *decoderSuite) TestDecodeInvalidCursorType() {
-	c, _ := NewEncoder("Value").Encode(struct{ Value int }{123})
-	_, err := NewDecoder("Value").Decode(c, struct{ Value string }{})
+	c, _ := NewEncoder([]EncoderField{{Key: "Value"}}).Encode(struct{ Value int }{123})
+	_, err := NewDecoder([]DecoderField{{Key: "Value"}}).Decode(c, struct{ Value string }{})
 	s.Equal(ErrInvalidCursor, err)
 }
 
 /* decode struct */
 
 func (s *decoderSuite) TestDecodeStructInvalidModel() {
-	err := NewDecoder("Value").DecodeStruct("123", struct{ ID string }{})
+	err := NewDecoder([]DecoderField{{Key: "Value"}}).DecodeStruct("123", struct{ ID string }{})
 	s.Equal(ErrInvalidModel, err)
 }
 
 func (s *decoderSuite) TestDecodeStructInvalidCursor() {
-	err := NewDecoder("Value").DecodeStruct("123", struct{ Value string }{})
+	err := NewDecoder([]DecoderField{{Key: "Value"}}).DecodeStruct("123", struct{ Value string }{})
 	s.Equal(ErrInvalidCursor, err)
 }

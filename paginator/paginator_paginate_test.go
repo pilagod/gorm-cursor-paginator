@@ -1,6 +1,7 @@
 package paginator
 
 import (
+	"reflect"
 	"time"
 
 	"gorm.io/gorm"
@@ -561,6 +562,111 @@ func (s *paginatorSuite) TestPaginateReplaceNULL() {
 
 	s.assertIDs(p3, 5, 3, 1)
 	s.assertForwardOnly(c)
+}
+
+func (s *paginatorSuite) TestPaginateCustomTypeInt() {
+	s.givenOrders(9)
+
+	numeric := "numeric"
+	cfg := &Config{
+		Limit: 3,
+		Rules: []Rule{
+			{
+				Key:     "Data",
+				Order:   DESC,
+				SQLRepr: "data #>> '{keyInt}'",
+				SQLType: &numeric,
+				CustomType: &CustomType{
+					Meta: "keyInt",
+					Type: reflect.TypeOf(0),
+				},
+			},
+		},
+	}
+
+	var p1 []order
+	_, c, _ := New(cfg).Paginate(s.db, &p1)
+	s.Len(p1, 3)
+	s.assertForwardOnly(c)
+	s.assertIDs(p1, 9, 8, 7)
+
+	var p2 []order
+	_, c, _ = New(cfg, WithAfter(*c.After)).Paginate(s.db, &p2)
+	s.Len(p2, 3)
+	s.assertBothDirections(c)
+	s.assertIDs(p2, 6, 5, 4)
+
+	var p3 []order
+	_, c, _ = New(cfg, WithAfter(*c.After)).Paginate(s.db, &p3)
+	s.Len(p3, 3)
+	s.assertIDs(p3, 3, 2, 1)
+	s.assertBackwardOnly(c)
+
+	// go back
+	var p2Back []order
+	_, c, _ = New(cfg, WithBefore(*c.Before)).Paginate(s.db, &p2Back)
+	s.Len(p2Back, 3)
+	s.assertBothDirections(c)
+	s.assertIDs(p2Back, 6, 5, 4)
+
+	var p1Back []order
+	_, c, _ = New(cfg, WithBefore(*c.Before)).Paginate(s.db, &p1Back)
+	s.Len(p1Back, 3)
+	s.assertForwardOnly(c)
+	s.assertIDs(p1, 9, 8, 7)
+}
+
+func (s *paginatorSuite) TestPaginateCustomTypeString() {
+	s.givenOrders(9)
+
+	text := "text"
+	cfg := &Config{
+		Limit: 3,
+		Rules: []Rule{
+			{
+				Key:     "Data",
+				Order:   DESC,
+				SQLRepr: "data #>> '{keyString}'",
+				SQLType: &text,
+				CustomType: &CustomType{
+					Meta: "keyString",
+					Type: reflect.TypeOf(""),
+				},
+			},
+		},
+	}
+
+	var p1 []order
+	_, c, _ := New(cfg).Paginate(s.db, &p1)
+	s.Len(p1, 3)
+	s.assertForwardOnly(c)
+	s.assertIDs(p1, 9, 8, 7)
+
+	var p2 []order
+	_, c, _ = New(cfg, WithAfter(*c.After)).Paginate(s.db, &p2)
+	s.Len(p2, 3)
+	s.assertBothDirections(c)
+	s.assertIDs(p2, 6, 5, 4)
+
+	var p3 []order
+	_, c, _ = New(cfg, WithAfter(*c.After)).Paginate(s.db, &p3)
+	s.Len(p3, 3)
+	s.assertIDs(p3, 3, 2, 1)
+	s.assertBackwardOnly(c)
+
+	// go back
+	var p2Back []order
+	_, c, _ = New(cfg, WithBefore(*c.Before)).Paginate(s.db, &p2Back)
+	s.Len(p2Back, 3)
+	s.assertBothDirections(c)
+	s.assertIDs(p2Back, 6, 5, 4)
+
+	// go back
+	var p1Back []order
+	_, c, _ = New(cfg, WithBefore(*c.Before)).Paginate(s.db, &p1Back)
+	s.Len(p1Back, 3)
+	s.assertForwardOnly(c)
+	s.assertIDs(p1, 9, 8, 7)
 }
 
 /* compatibility */
