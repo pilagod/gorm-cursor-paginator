@@ -92,10 +92,10 @@ We first need to create a `paginator.Paginator` for `User`, here are some useful
             p.SetLimit(*limit)
         }
         if cursor.After != nil {
-            p.SetAfter(*cursor.After)
+            p.SetAfterCursor(*cursor.After)
         }
         if cursor.Before != nil {
-            p.SetBefore(*cursor.Before)
+            p.SetBeforeCursor(*cursor.Before)
         }
         return p
     }
