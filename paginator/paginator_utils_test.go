@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_IsNil(t *testing.T) {
+func TestIsNil(t *testing.T) {
 	t.Parallel()
 
 	var testErrNilPtr *testError
