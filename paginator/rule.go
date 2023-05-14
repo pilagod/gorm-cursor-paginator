@@ -1,6 +1,7 @@
 package paginator
 
 import (
+	"gorm.io/gorm"
 	"reflect"
 
 	"github.com/pilagod/gorm-cursor-paginator/v2/internal/util"
@@ -22,8 +23,10 @@ type CustomType struct {
 	Type reflect.Type
 }
 
-func (r *Rule) validate(dest interface{}) (err error) {
-	if _, ok := util.ReflectType(dest).FieldByName(r.Key); !ok {
+func (r *Rule) validate(db *gorm.DB, dest interface{}) (err error) {
+	if schema, err := util.ParseSchema(db, dest); err != nil {
+		return ErrInvalidModel
+	} else if f := schema.LookUpField(r.Key); f == nil {
 		return ErrInvalidModel
 	}
 	if r.Order != "" {

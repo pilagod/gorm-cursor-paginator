@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/iancoleman/strcase"
 	"gorm.io/gorm"
 
 	"github.com/pilagod/gorm-cursor-paginator/v2/cursor"
@@ -68,10 +67,13 @@ func (p *Paginator) SetBeforeCursor(beforeCursor string) {
 
 // Paginate paginates data
 func (p *Paginator) Paginate(db *gorm.DB, dest interface{}) (result *gorm.DB, c Cursor, err error) {
-	if err = p.validate(dest); err != nil {
+	if err = p.validate(db, dest); err != nil {
 		return
 	}
-	p.setup(db, dest)
+	err = p.setup(db, dest)
+	if err != nil {
+		return
+	}
 	fields, err := p.decodeCursor(dest)
 	if err != nil {
 		return
@@ -99,7 +101,7 @@ func (p *Paginator) Paginate(db *gorm.DB, dest interface{}) (result *gorm.DB, c 
 
 /* private */
 
-func (p *Paginator) validate(dest interface{}) (err error) {
+func (p *Paginator) validate(db *gorm.DB, dest interface{}) (err error) {
 	if len(p.rules) == 0 {
 		return ErrNoRule
 	}
@@ -110,25 +112,26 @@ func (p *Paginator) validate(dest interface{}) (err error) {
 		return
 	}
 	for _, rule := range p.rules {
-		if err = rule.validate(dest); err != nil {
+		if err = rule.validate(db, dest); err != nil {
 			return
 		}
 	}
 	return
 }
 
-func (p *Paginator) setup(db *gorm.DB, dest interface{}) {
+func (p *Paginator) setup(db *gorm.DB, dest interface{}) error {
 	var sqlTable string
 	for i := range p.rules {
 		rule := &p.rules[i]
 		if rule.SQLRepr == "" {
 			if sqlTable == "" {
-				// https://stackoverflow.com/questions/51999441/how-to-get-a-table-name-from-a-model-in-gorm
-				stmt := &gorm.Statement{DB: db}
-				stmt.Parse(dest)
-				sqlTable = stmt.Schema.Table
+				schema, err := util.ParseSchema(db, dest)
+				if err != nil {
+					return err
+				}
+				sqlTable = schema.Table
 			}
-			sqlKey := p.parseSQLKey(dest, rule.Key)
+			sqlKey := p.parseSQLKey(db, dest, rule.Key)
 			rule.SQLRepr = fmt.Sprintf("%s.%s", sqlTable, sqlKey)
 		}
 		if rule.NULLReplacement != nil {
@@ -142,26 +145,13 @@ func (p *Paginator) setup(db *gorm.DB, dest interface{}) {
 			rule.Order = p.order
 		}
 	}
+	return nil
 }
 
-func (p *Paginator) parseSQLKey(dest interface{}, key string) string {
+func (p *Paginator) parseSQLKey(db *gorm.DB, dest interface{}, key string) string {
 	// dest is already validated at validataion phase
-	f, _ := util.ReflectType(dest).FieldByName(key)
-	for _, tag := range strings.Split(string(f.Tag), " ") {
-		// e.g., gorm:"type:varchar(255);column:field_name"
-		if strings.HasPrefix(tag, "gorm:") {
-			opts := strings.Split(
-				strings.Trim(tag[len("gorm:"):], "\""),
-				";",
-			)
-			for _, opt := range opts {
-				if strings.HasPrefix(opt, "column:") {
-					return opt[len("column:"):]
-				}
-			}
-		}
-	}
-	return strcase.ToSnake(f.Name)
+	schema, _ := util.ParseSchema(db, dest)
+	return schema.LookUpField(key).DBName
 }
 
 // https://mangatmodi.medium.com/go-check-nil-interface-the-right-way-d142776edef1
