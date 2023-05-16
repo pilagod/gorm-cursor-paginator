@@ -1,6 +1,7 @@
 package paginator
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,11 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"database/sql/driver"
-
-	"github.com/stretchr/testify/suite"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	"github.com/stretchr/testify/suite"
 )
 
 func TestPaginator(t *testing.T) {
@@ -97,7 +97,7 @@ func (s *paginatorSuite) SetupSuite() {
 	if err != nil {
 		s.FailNow(err.Error())
 	}
-	s.db = db.Debug()
+	s.db = db
 	s.db.AutoMigrate(&order{}, &item{})
 }
 
