@@ -1,4 +1,4 @@
-# gorm-cursor-paginator [![Build Status](https://travis-ci.org/pilagod/gorm-cursor-paginator.svg?branch=master)](https://travis-ci.org/pilagod/gorm-cursor-paginator) [![Coverage Status](https://coveralls.io/repos/github/pilagod/gorm-cursor-paginator/badge.svg?branch=master&kill_cache=1)](https://coveralls.io/github/pilagod/gorm-cursor-paginator?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/pilagod/gorm-cursor-paginator)](https://goreportcard.com/report/github.com/pilagod/gorm-cursor-paginator)
+# gorm-cursor-paginator ![Build Status](https://github.com/pilagod/gorm-cursor-paginator/actions/workflows/test.yml/badge.svg) [![Coverage Status](https://coveralls.io/repos/github/pilagod/gorm-cursor-paginator/badge.svg?branch=master&kill_cache=1)](https://coveralls.io/github/pilagod/gorm-cursor-paginator?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/pilagod/gorm-cursor-paginator)](https://goreportcard.com/report/github.com/pilagod/gorm-cursor-paginator)
 
 A paginator doing cursor-based pagination based on [GORM](https://github.com/go-gorm/gorm)
 
