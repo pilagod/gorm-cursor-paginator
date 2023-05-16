@@ -70,8 +70,7 @@ func (p *Paginator) Paginate(db *gorm.DB, dest interface{}) (result *gorm.DB, c 
 	if err = p.validate(db, dest); err != nil {
 		return
 	}
-	err = p.setup(db, dest)
-	if err != nil {
+	if err = p.setup(db, dest); err != nil {
 		return
 	}
 	fields, err := p.decodeCursor(dest)

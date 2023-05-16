@@ -7,8 +7,7 @@ import (
 
 func ParseSchema(db *gorm.DB, model interface{}) (*schema.Schema, error) {
 	stmt := &gorm.Statement{DB: db}
-	err := stmt.Parse(model)
-	if err != nil {
+	if err := stmt.Parse(model); err != nil {
 		return nil, err
 	}
 	return stmt.Schema, nil
