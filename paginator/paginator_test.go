@@ -97,7 +97,7 @@ func (s *paginatorSuite) SetupSuite() {
 	if err != nil {
 		s.FailNow(err.Error())
 	}
-	s.db = db
+	s.db = db.Debug()
 	s.db.AutoMigrate(&order{}, &item{})
 }
 
