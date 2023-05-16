@@ -185,35 +185,50 @@ That's all! Enjoy paginating in the GORM world. :tada:
 Default options used by paginator when not specified:
 
 - `Keys`: `[]string{"ID"}`
+
 - `Limit`: `10`
+
 - `Order`: `paginator.DESC`
 
 ### paginator.Rule
 
 - `Key`: Field name in target model struct.
+
 - `Order`: Order for this key only.
-- `SQLRepr`: SQL representation used in raw SQL query.<br/>
+
+- `SQLRepr`: SQL representation used in raw SQL query.
     > This is especially useful when you have `JOIN` or table alias in your SQL query. If `SQLRepr` is not specified, paginator will get table name from model, plus table key derived by below rules to form the SQL query:
     > 1. Find GORM tag `column` on struct field.
     > 2. If tag not found, convert struct field name to snake case.
-- `SQLType`: SQL type used for type casting in the raw SQL query.<br/>
+
+- `SQLType`: SQL type used for type casting in the raw SQL query.
     > This is especially useful when working with custom types (e.g. JSON).
-- `NULLReplacement`(v2.2.0): Replacement for NULL value when paginating by nullable column.<br/>
+
+- `NULLReplacement`(v2.2.0): Replacement for NULL value when paginating by nullable column.
     > If you paginate by nullable column, you will encounter [NULLS { FIRST | LAST } problems](https://learnsql.com/blog/how-to-order-rows-with-nulls/). This option let you decide how to order rows with NULL value. For instance, we can set this value to `1970-01-01` for a nullable `date` column, to ensure rows with NULL date will be placed at head when order is ASC, or at tail when order is DESC.
+
 - `CustomType`: Extra information needed only when paginating across custom types (e.g. JSON). To support custom type pagination, the type needs to implement the `CustomType` interface:
+
   ```go
   type CustomType interface {
       // GetCustomTypeValue returns the value corresponding to the meta attribute inside the custom type.
       GetCustomTypeValue(meta interface{}) (interface{}, error)
   }
   ```
+
   and provide the following information:
+
   - `Meta`: meta attribute inside the custom type. The paginator will pass this meta attribute to the `GetCustomTypeValue` function, which should return the actual value corresponding to the meta attribute. For JSON, meta would contain the JSON key of the element inside JSON to be used for pagination.
+
   - `Type`: GoLang type of the meta attribute. 
 
-  Also, when paginating across custom types, it is expected that the `SQLRepr` & `SQLType` are set.  `SQLRepr` should contain the SQL query to get the meta attribute value, while `SQLType` should be used for type casting if needed.
+  Also, when paginating across custom types, it is expected that the `SQLRepr` & `SQLType` are set.  `SQLRepr` should contain the SQL query to get the meta attribute value, while `SQLType` should be used for type casting if needed. Check examples of [JSON custom type](https://github.com/pilagod/gorm-cursor-paginator/blob/c91935c7488bf9907902c8005f429e719cefa96b/paginator/paginator_test.go#L65-L81) and [custom type setting](https://github.com/pilagod/gorm-cursor-paginator/blob/c91935c7488bf9907902c8005f429e719cefa96b/paginator/paginator_paginate_test.go#L567-L617).
 
 ## Changelog
+
+### v2.4.0
+
+- Support [NamingStrategy](https://gorm.io/docs/gorm_config.html#NamingStrategy) ([#49](https://github.com/pilagod/gorm-cursor-paginator/pull/49)), credit to [@goxiaoy](https://github.com/goxiaoy).
 
 ### v2.3.0
 
