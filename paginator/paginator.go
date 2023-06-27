@@ -135,11 +135,9 @@ func (p *Paginator) setup(db *gorm.DB, dest interface{}) error {
 		}
 
 		if rule.NULLReplacement != nil {
-			var nullReplacement string
+			nullReplacement := fmt.Sprintf("'%v'", rule.NULLReplacement)
 			if rule.SQLType != nil {
-				nullReplacement = fmt.Sprintf("CAST('%v' as %s)", rule.NULLReplacement, *rule.SQLType)
-			} else {
-				nullReplacement = fmt.Sprintf("'%v'", rule.NULLReplacement)
+				nullReplacement = fmt.Sprintf("CAST(%s as %s)", nullReplacement, *rule.SQLType)
 			}
 			rule.SQLRepr = fmt.Sprintf("COALESCE(%s, %s)", rule.SQLRepr, nullReplacement)
 		}
