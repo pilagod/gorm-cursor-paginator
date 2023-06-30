@@ -226,6 +226,10 @@ Default options used by paginator when not specified:
 
 ## Changelog
 
+### v2.4.1
+
+- Cast `NULLReplacement` when `SQLType` is specified ([#52](https://github.com/pilagod/gorm-cursor-paginator/pull/52)), credit to [@jpugliesi](https://github.com/jpugliesi).
+
 ### v2.4.0
 
 - Support [NamingStrategy](https://gorm.io/docs/gorm_config.html#NamingStrategy) ([#49](https://github.com/pilagod/gorm-cursor-paginator/pull/49)), credit to [@goxiaoy](https://github.com/goxiaoy).
