@@ -133,8 +133,13 @@ func (p *Paginator) setup(db *gorm.DB, dest interface{}) error {
 			sqlKey := p.parseSQLKey(db, dest, rule.Key)
 			rule.SQLRepr = fmt.Sprintf("%s.%s", sqlTable, sqlKey)
 		}
+
 		if rule.NULLReplacement != nil {
-			rule.SQLRepr = fmt.Sprintf("COALESCE(%s, '%v')", rule.SQLRepr, rule.NULLReplacement)
+			nullReplacement := fmt.Sprintf("'%v'", rule.NULLReplacement)
+			if rule.SQLType != nil {
+				nullReplacement = fmt.Sprintf("CAST(%s as %s)", nullReplacement, *rule.SQLType)
+			}
+			rule.SQLRepr = fmt.Sprintf("COALESCE(%s, %s)", rule.SQLRepr, nullReplacement)
 		}
 		// cast to the underlying SQL type
 		if rule.SQLType != nil {
