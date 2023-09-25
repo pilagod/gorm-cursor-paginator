@@ -220,7 +220,7 @@ func (p *Paginator) buildOrderSQL() string {
 		if p.isBackward() {
 			order = order.flip()
 		}
-		orders[i] = fmt.Sprintf("%s %s", rule.SQLRepr, order)
+		orders[i] = fmt.Sprintf("%s %s %s", rule.SQLRepr, order, rule.CustomOrder)
 	}
 	return strings.Join(orders, ", ")
 }

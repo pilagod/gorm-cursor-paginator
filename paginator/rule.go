@@ -15,6 +15,7 @@ type Rule struct {
 	SQLType         *string
 	NULLReplacement interface{}
 	CustomType      *CustomType
+	CustomOrder     string
 }
 
 // CustomType for paginator. It provides extra info needed to paginate across custom types (e.g. JSON)
