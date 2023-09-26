@@ -1,8 +1,9 @@
 package paginator
 
 import (
-	"gorm.io/gorm"
 	"reflect"
+
+	"gorm.io/gorm"
 
 	"github.com/pilagod/gorm-cursor-paginator/v2/internal/util"
 )
@@ -14,8 +15,8 @@ type Rule struct {
 	SQLRepr         string
 	SQLType         *string
 	NULLReplacement interface{}
+	NullOrder       NullOrder
 	CustomType      *CustomType
-	CustomOrder     string
 }
 
 // CustomType for paginator. It provides extra info needed to paginate across custom types (e.g. JSON)
@@ -32,6 +33,11 @@ func (r *Rule) validate(db *gorm.DB, dest interface{}) (err error) {
 	}
 	if r.Order != "" {
 		if err = r.Order.validate(); err != nil {
+			return
+		}
+	}
+	if r.NullOrder != "" {
+		if err = r.NullOrder.validate(); err != nil {
 			return
 		}
 	}

@@ -22,10 +22,11 @@ func New(opts ...Option) *Paginator {
 
 // Paginator a builder doing pagination
 type Paginator struct {
-	cursor Cursor
-	rules  []Rule
-	limit  int
-	order  Order
+	cursor           Cursor
+	rules            []Rule
+	limit            int
+	order            Order
+	nullOrderBuilder NullOrderBuilder
 }
 
 // SetRules sets paging rules
@@ -53,6 +54,11 @@ func (p *Paginator) SetLimit(limit int) {
 // SetOrder sets paging order
 func (p *Paginator) SetOrder(order Order) {
 	p.order = order
+}
+
+// SetNullOrderBuilder sets builder for null order
+func (p *Paginator) SetNullOrderBuilder(builder NullOrderBuilder) {
+	p.nullOrderBuilder = builder
 }
 
 // SetAfterCursor sets paging after cursor
@@ -220,7 +226,11 @@ func (p *Paginator) buildOrderSQL() string {
 		if p.isBackward() {
 			order = order.flip()
 		}
-		orders[i] = fmt.Sprintf("%s %s %s", rule.SQLRepr, order, rule.CustomOrder)
+		if p.nullOrderBuilder != nil && rule.NullOrder != "" {
+			orders[i] = p.nullOrderBuilder(rule, order)
+		} else {
+			orders[i] = fmt.Sprintf("%s %s", rule.SQLRepr, order)
+		}
 	}
 	return strings.Join(orders, ", ")
 }
