@@ -1,12 +1,12 @@
 package cursor
 
 import (
+	"errors"
+	"reflect"
 	"testing"
 	"time"
 
-	"errors"
-	"reflect"
-
+	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -16,6 +16,21 @@ func TestEncoding(t *testing.T) {
 
 type encodingSuite struct {
 	suite.Suite
+}
+
+/* ksuid */
+
+type ksuidModel struct {
+	Value ksuid.KSUID
+}
+
+func (s *encodingSuite) TestKsuid() {
+	id := ksuid.New()
+
+	c, _ := s.encodeValue(ksuidModel{Value: id})
+	v, _ := s.decodeValue(ksuidModel{}, c)
+
+	s.Equal(0, ksuid.Compare(id, v.(ksuid.KSUID)))
 }
 
 /* bool */
