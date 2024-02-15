@@ -163,6 +163,14 @@ func isNil(i interface{}) bool {
 	if i == nil {
 		return true
 	}
+	// for custom types, evaluate isNil on the underlying value
+	if ct, ok := i.(cursor.CustomType); ok {
+		val, err := ct.GetCustomTypeValue(i)
+		if err != nil {
+			return false
+		}
+		return isNil(val)
+	}
 	switch reflect.TypeOf(i).Kind() {
 	// reflect.Array is intentionally omitted since calling IsNil() on the value
 	// of an array will panic

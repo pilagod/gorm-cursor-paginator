@@ -24,10 +24,11 @@ func TestPaginator(t *testing.T) {
 /* models */
 
 type order struct {
-	ID        int       `gorm:"primaryKey"`
-	Remark    *string   `gorm:"type:varchar(30)"`
-	CreatedAt time.Time `gorm:"type:timestamp;not null"`
-	Data      JSON      `gorm:"type:jsonb"`
+	ID          int        `gorm:"primaryKey"`
+	Remark      *string    `gorm:"type:varchar(30)"`
+	CreatedAt   time.Time  `gorm:"type:timestamp;not null"`
+	Data        JSON       `gorm:"type:jsonb"`
+	Description NullString `gorm:"type:varchar(30)"`
 }
 
 type item struct {

@@ -1,6 +1,11 @@
 package paginator
 
 import (
+	"bytes"
+	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"reflect"
 	"time"
 
@@ -667,6 +672,134 @@ func (s *paginatorSuite) TestPaginateCustomTypeString() {
 	s.Len(p1Back, 3)
 	s.assertForwardOnly(c)
 	s.assertIDs(p1, 9, 8, 7)
+}
+
+type NullString sql.NullString
+
+func (ns NullString) MarshalJSON() ([]byte, error) {
+	if !ns.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(ns.String)
+}
+
+func (ns *NullString) UnmarshalJSON(b []byte) error {
+	isNull := bytes.Equal(b, []byte("null"))
+	ns.Valid = !isNull
+
+	if isNull {
+		ns.String = "null"
+		return nil
+	}
+	return json.Unmarshal(b, &ns.String)
+}
+
+func (ns NullString) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return ns.String, nil
+}
+
+func (ns *NullString) Scan(value interface{}) error {
+	if value == nil {
+		ns.String = ""
+		ns.Valid = false
+	} else if strValue, ok := value.(string); ok {
+		ns.Valid = true
+		ns.String = strValue
+	} else {
+		return errors.New("unsupported type")
+	}
+	return nil
+}
+
+func (ns NullString) GetCustomTypeValue(meta interface{}) (interface{}, error) {
+	if ns.Valid {
+		return ns.String, nil
+	}
+	return nil, nil
+}
+
+func (s *paginatorSuite) TestPaginateCustomTypeNullable() {
+	s.givenOrders([]order{
+		{
+			ID:     1,
+			Remark: ptrStr("1"),
+			Description: NullString{
+				String: "A",
+				Valid:  true,
+			},
+		},
+		{
+			ID:     2,
+			Remark: ptrStr("2"),
+			Description: NullString{
+				String: "",
+				Valid:  false,
+			},
+		},
+		{
+			ID:     3,
+			Remark: ptrStr("2"),
+			Description: NullString{
+				String: "B",
+				Valid:  true,
+			},
+		},
+	})
+
+	text := "text"
+	cfg := &Config{
+		Limit: 1,
+		Rules: []Rule{
+			{
+				Key:   "Remark",
+				Order: ASC,
+			},
+			{
+				Key:     "Description",
+				Order:   ASC,
+				SQLType: &text,
+				CustomType: &CustomType{
+					Type: reflect.TypeOf(NullString{}),
+				},
+				NULLReplacement: "",
+			},
+		},
+	}
+
+	var p1 []order
+	_, c, _ := New(cfg).Paginate(s.db, &p1)
+	s.Len(p1, 1)
+	s.assertForwardOnly(c)
+	s.assertIDs(p1, 1)
+
+	var p2 []order
+	_, c, _ = New(cfg, WithAfter(*c.After)).Paginate(s.db, &p2)
+	s.Len(p2, 1)
+	s.assertBothDirections(c)
+	s.assertIDs(p2, 2)
+
+	var p3 []order
+	_, c, _ = New(cfg, WithAfter(*c.After)).Paginate(s.db, &p3)
+	s.Len(p3, 1)
+	s.assertBackwardOnly(c)
+	s.assertIDs(p3, 3)
+
+	// back to page 2
+	var p4 []order
+	_, c, _ = New(cfg, WithBefore(*c.Before)).Paginate(s.db, &p4)
+	s.Len(p4, 1)
+	s.assertBothDirections(c)
+	s.assertIDs(p4, 2)
+
+	// back to page 1
+	var p5 []order
+	_, c, _ = New(cfg, WithBefore(*c.Before)).Paginate(s.db, &p5)
+	s.Len(p5, 1)
+	s.assertForwardOnly(c)
+	s.assertIDs(p5, 1)
 }
 
 /* compatibility */
