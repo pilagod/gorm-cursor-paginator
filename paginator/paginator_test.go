@@ -1,6 +1,8 @@
 package paginator
 
 import (
+	"bytes"
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -24,11 +26,11 @@ func TestPaginator(t *testing.T) {
 /* models */
 
 type order struct {
-	ID          int        `gorm:"primaryKey"`
-	Remark      *string    `gorm:"type:varchar(30)"`
-	CreatedAt   time.Time  `gorm:"type:timestamp;not null"`
-	Data        JSON       `gorm:"type:jsonb"`
-	Description NullString `gorm:"type:varchar(30)"`
+	ID                 int        `gorm:"primaryKey"`
+	Remark             *string    `gorm:"type:varchar(30)"`
+	CreatedAt          time.Time  `gorm:"type:timestamp;not null"`
+	Data               JSON       `gorm:"type:jsonb"`
+	NullableCustomData NullString `gorm:"type:varchar(30)"`
 }
 
 type item struct {
@@ -79,6 +81,55 @@ func (j JSON) GetCustomTypeValue(meta interface{}) (interface{}, error) {
 	}
 
 	return i, nil
+}
+
+/* NullString type used for testing custom types with nullable values */
+
+type NullString sql.NullString
+
+func (ns NullString) MarshalJSON() ([]byte, error) {
+	if !ns.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(ns.String)
+}
+
+func (ns *NullString) UnmarshalJSON(b []byte) error {
+	isNull := bytes.Equal(b, []byte("null"))
+	ns.Valid = !isNull
+
+	if isNull {
+		ns.String = "null"
+		return nil
+	}
+	return json.Unmarshal(b, &ns.String)
+}
+
+func (ns NullString) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return ns.String, nil
+}
+
+func (ns *NullString) Scan(value interface{}) error {
+	if value == nil {
+		ns.String = ""
+		ns.Valid = false
+	} else if strValue, ok := value.(string); ok {
+		ns.Valid = true
+		ns.String = strValue
+	} else {
+		return errors.New("unsupported type")
+	}
+	return nil
+}
+
+func (ns NullString) GetCustomTypeValue(meta interface{}) (interface{}, error) {
+	if ns.Valid {
+		return ns.String, nil
+	}
+	return nil, nil
 }
 
 /* paginator suite */

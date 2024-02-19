@@ -1,11 +1,6 @@
 package paginator
 
 import (
-	"bytes"
-	"database/sql"
-	"database/sql/driver"
-	"encoding/json"
-	"errors"
 	"reflect"
 	"time"
 
@@ -674,59 +669,12 @@ func (s *paginatorSuite) TestPaginateCustomTypeString() {
 	s.assertIDs(p1, 9, 8, 7)
 }
 
-type NullString sql.NullString
-
-func (ns NullString) MarshalJSON() ([]byte, error) {
-	if !ns.Valid {
-		return []byte("null"), nil
-	}
-	return json.Marshal(ns.String)
-}
-
-func (ns *NullString) UnmarshalJSON(b []byte) error {
-	isNull := bytes.Equal(b, []byte("null"))
-	ns.Valid = !isNull
-
-	if isNull {
-		ns.String = "null"
-		return nil
-	}
-	return json.Unmarshal(b, &ns.String)
-}
-
-func (ns NullString) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return ns.String, nil
-}
-
-func (ns *NullString) Scan(value interface{}) error {
-	if value == nil {
-		ns.String = ""
-		ns.Valid = false
-	} else if strValue, ok := value.(string); ok {
-		ns.Valid = true
-		ns.String = strValue
-	} else {
-		return errors.New("unsupported type")
-	}
-	return nil
-}
-
-func (ns NullString) GetCustomTypeValue(meta interface{}) (interface{}, error) {
-	if ns.Valid {
-		return ns.String, nil
-	}
-	return nil, nil
-}
-
 func (s *paginatorSuite) TestPaginateCustomTypeNullable() {
 	s.givenOrders([]order{
 		{
 			ID:     1,
 			Remark: ptrStr("1"),
-			Description: NullString{
+			NullableCustomData: NullString{
 				String: "A",
 				Valid:  true,
 			},
@@ -734,7 +682,7 @@ func (s *paginatorSuite) TestPaginateCustomTypeNullable() {
 		{
 			ID:     2,
 			Remark: ptrStr("2"),
-			Description: NullString{
+			NullableCustomData: NullString{
 				String: "",
 				Valid:  false,
 			},
@@ -742,7 +690,7 @@ func (s *paginatorSuite) TestPaginateCustomTypeNullable() {
 		{
 			ID:     3,
 			Remark: ptrStr("2"),
-			Description: NullString{
+			NullableCustomData: NullString{
 				String: "B",
 				Valid:  true,
 			},
@@ -758,7 +706,7 @@ func (s *paginatorSuite) TestPaginateCustomTypeNullable() {
 				Order: ASC,
 			},
 			{
-				Key:     "Description",
+				Key:     "NullableCustomData",
 				Order:   ASC,
 				SQLType: &text,
 				CustomType: &CustomType{
