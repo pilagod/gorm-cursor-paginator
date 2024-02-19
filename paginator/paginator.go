@@ -184,19 +184,12 @@ func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err er
 	}
 	// replace null values
 	for i := range result {
-		var isNullValue bool
+		value := result[i]
 		// for custom types, evaluate isNil on the underlying value
 		if ct, ok := result[i].(cursor.CustomType); ok && p.rules[i].CustomType != nil {
-			val, valErr := ct.GetCustomTypeValue(p.rules[i].CustomType.Meta)
-			if valErr != nil {
-				err = valErr
-			}
-			isNullValue = isNil(val)
-		} else {
-			isNullValue = isNil(result[i])
+			value, err = ct.GetCustomTypeValue(p.rules[i].CustomType.Meta)
 		}
-
-		if isNullValue {
+		if isNil(value) {
 			result[i] = p.rules[i].NULLReplacement
 		}
 	}
