@@ -669,6 +669,87 @@ func (s *paginatorSuite) TestPaginateCustomTypeString() {
 	s.assertIDs(p1, 9, 8, 7)
 }
 
+func (s *paginatorSuite) TestPaginateCustomTypeNullable() {
+	s.givenOrders([]order{
+		{
+			ID:     1,
+			Remark: ptrStr("1"),
+			NullableCustomData: NullString{
+				String: "A",
+				Valid:  true,
+			},
+		},
+		{
+			ID:     2,
+			Remark: ptrStr("2"),
+			NullableCustomData: NullString{
+				String: "",
+				Valid:  false,
+			},
+		},
+		{
+			ID:     3,
+			Remark: ptrStr("2"),
+			NullableCustomData: NullString{
+				String: "B",
+				Valid:  true,
+			},
+		},
+	})
+
+	text := "text"
+	cfg := &Config{
+		Limit: 1,
+		Rules: []Rule{
+			{
+				Key:   "Remark",
+				Order: ASC,
+			},
+			{
+				Key:     "NullableCustomData",
+				Order:   ASC,
+				SQLType: &text,
+				CustomType: &CustomType{
+					Type: reflect.TypeOf(NullString{}),
+				},
+				NULLReplacement: "",
+			},
+		},
+	}
+
+	var p1 []order
+	_, c, _ := New(cfg).Paginate(s.db, &p1)
+	s.Len(p1, 1)
+	s.assertForwardOnly(c)
+	s.assertIDs(p1, 1)
+
+	var p2 []order
+	_, c, _ = New(cfg, WithAfter(*c.After)).Paginate(s.db, &p2)
+	s.Len(p2, 1)
+	s.assertBothDirections(c)
+	s.assertIDs(p2, 2)
+
+	var p3 []order
+	_, c, _ = New(cfg, WithAfter(*c.After)).Paginate(s.db, &p3)
+	s.Len(p3, 1)
+	s.assertBackwardOnly(c)
+	s.assertIDs(p3, 3)
+
+	// back to page 2
+	var p4 []order
+	_, c, _ = New(cfg, WithBefore(*c.Before)).Paginate(s.db, &p4)
+	s.Len(p4, 1)
+	s.assertBothDirections(c)
+	s.assertIDs(p4, 2)
+
+	// back to page 1
+	var p5 []order
+	_, c, _ = New(cfg, WithBefore(*c.Before)).Paginate(s.db, &p5)
+	s.Len(p5, 1)
+	s.assertForwardOnly(c)
+	s.assertIDs(p5, 1)
+}
+
 /* compatibility */
 
 func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndKeyOptions() {
