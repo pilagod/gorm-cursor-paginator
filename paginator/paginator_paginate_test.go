@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/pilagod/pointer"
 	"gorm.io/gorm"
 )
 
@@ -567,7 +568,6 @@ func (s *paginatorSuite) TestPaginateReplaceNULL() {
 func (s *paginatorSuite) TestPaginateCustomTypeInt() {
 	s.givenOrders(9)
 
-	numeric := "numeric"
 	cfg := &Config{
 		Limit: 3,
 		Rules: []Rule{
@@ -575,7 +575,7 @@ func (s *paginatorSuite) TestPaginateCustomTypeInt() {
 				Key:     "Data",
 				Order:   DESC,
 				SQLRepr: "data #>> '{keyInt}'",
-				SQLType: &numeric,
+				SQLType: pointer.String("numeric"),
 				CustomType: &CustomType{
 					Meta: "keyInt",
 					Type: reflect.TypeOf(0),
@@ -619,7 +619,6 @@ func (s *paginatorSuite) TestPaginateCustomTypeInt() {
 func (s *paginatorSuite) TestPaginateCustomTypeString() {
 	s.givenOrders(9)
 
-	text := "text"
 	cfg := &Config{
 		Limit: 3,
 		Rules: []Rule{
@@ -627,7 +626,7 @@ func (s *paginatorSuite) TestPaginateCustomTypeString() {
 				Key:     "Data",
 				Order:   DESC,
 				SQLRepr: "data #>> '{keyString}'",
-				SQLType: &text,
+				SQLType: pointer.String("text"),
 				CustomType: &CustomType{
 					Meta: "keyString",
 					Type: reflect.TypeOf(""),
@@ -697,7 +696,6 @@ func (s *paginatorSuite) TestPaginateCustomTypeNullable() {
 		},
 	})
 
-	text := "text"
 	cfg := &Config{
 		Limit: 1,
 		Rules: []Rule{
@@ -708,7 +706,7 @@ func (s *paginatorSuite) TestPaginateCustomTypeNullable() {
 			{
 				Key:     "NullableCustomData",
 				Order:   ASC,
-				SQLType: &text,
+				SQLType: pointer.String("text"),
 				CustomType: &CustomType{
 					Type: reflect.TypeOf(NullString{}),
 				},
@@ -847,7 +845,6 @@ func (s *paginatorSuite) TestPaginateConsistencyBetweenBuilderAndRuleOptions() {
 	})
 
 	var temp []order
-
 	result, c, err := New(
 		WithKeys("CreatedAt", "ID"),
 		WithLimit(3),

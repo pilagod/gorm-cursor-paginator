@@ -276,6 +276,7 @@ func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Curs
 }
 
 /* custom types */
+
 func (p *Paginator) getEncoderFields() []cursor.EncoderField {
 	fields := make([]cursor.EncoderField, len(p.rules))
 	for i, rule := range p.rules {
