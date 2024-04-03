@@ -599,8 +599,8 @@ func (s *paginatorSuite) TestPaginateCustomTypeInt() {
 	var p3 []order
 	_, c, _ = New(cfg, WithAfter(*c.After)).Paginate(s.db, &p3)
 	s.Len(p3, 3)
-	s.assertIDs(p3, 3, 2, 1)
 	s.assertBackwardOnly(c)
+	s.assertIDs(p3, 3, 2, 1)
 
 	// go back
 	var p2Back []order
