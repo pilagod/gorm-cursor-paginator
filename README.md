@@ -226,6 +226,10 @@ Default options used by paginator when not specified:
 
 ## Changelog
 
+### v2.5.0
+
+- Export `GetCursorEncoder` & `GetCursorDecoder` on `paginator.Paginator`.
+
 ### v2.4.2
 
 - Support `NULLReplacement` for custom types ([#58](https://github.com/pilagod/gorm-cursor-paginator/pull/58)), credit to [@zitnik](https://github.com/zitnik).
