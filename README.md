@@ -228,7 +228,7 @@ Default options used by paginator when not specified:
 
 ### v2.5.0
 
-- Export `GetCursorEncoder` & `GetCursorDecoder` on `paginator.Paginator`.
+- Export `GetCursorEncoder` & `GetCursorDecoder` on `paginator.Paginator` ([#59](https://github.com/pilagod/gorm-cursor-paginator/issues/59)).
 
 ### v2.4.2
 
