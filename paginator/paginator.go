@@ -98,6 +98,16 @@ func (p *Paginator) Paginate(db *gorm.DB, dest interface{}) (result *gorm.DB, c 
 	return
 }
 
+// GetCursorEncoder returns cursor encoder based on paginator rules
+func (p *Paginator) GetCursorEncoder() *cursor.Encoder {
+	return cursor.NewEncoder(p.getEncoderFields())
+}
+
+// GetCursorDecoder returns cursor decoder based on paginator rules
+func (p *Paginator) GetCursorDecoder() *cursor.Decoder {
+	return cursor.NewDecoder(p.getDecoderFields())
+}
+
 /* private */
 
 func (p *Paginator) validate(db *gorm.DB, dest interface{}) (err error) {
@@ -173,12 +183,14 @@ func isNil(i interface{}) bool {
 }
 
 func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err error) {
+	decoder := p.GetCursorDecoder()
+
 	if p.isForward() {
-		if result, err = cursor.NewDecoder(p.getDecoderFields()).Decode(*p.cursor.After, dest); err != nil {
+		if result, err = decoder.Decode(*p.cursor.After, dest); err != nil {
 			err = ErrInvalidCursor
 		}
 	} else if p.isBackward() {
-		if result, err = cursor.NewDecoder(p.getDecoderFields()).Decode(*p.cursor.Before, dest); err != nil {
+		if result, err = decoder.Decode(*p.cursor.Before, dest); err != nil {
 			err = ErrInvalidCursor
 		}
 	}
@@ -255,7 +267,7 @@ func (p *Paginator) buildCursorSQLQueryArgs(fields []interface{}) (args []interf
 }
 
 func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Cursor, err error) {
-	encoder := cursor.NewEncoder(p.getEncoderFields())
+	encoder := p.GetCursorEncoder()
 	// encode after cursor
 	if p.isBackward() || hasMore {
 		c, err := encoder.Encode(elems.Index(elems.Len() - 1))
