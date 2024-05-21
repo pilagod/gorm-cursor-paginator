@@ -22,10 +22,11 @@ func New(opts ...Option) *Paginator {
 
 // Paginator a builder doing pagination
 type Paginator struct {
-	cursor Cursor
-	rules  []Rule
-	limit  int
-	order  Order
+	cursor        Cursor
+	rules         []Rule
+	limit         int
+	order         Order
+	allowTupleCmp bool
 }
 
 // SetRules sets paging rules
@@ -63,6 +64,11 @@ func (p *Paginator) SetAfterCursor(afterCursor string) {
 // SetBeforeCursor sets paging before cursor
 func (p *Paginator) SetBeforeCursor(beforeCursor string) {
 	p.cursor.Before = &beforeCursor
+}
+
+// SetAllowTupleCmp enables or disables tuple comparison optimization
+func (p *Paginator) SetAllowTupleCmp(allow bool) {
+	p.allowTupleCmp = allow
 }
 
 // Paginate paginates data
@@ -221,13 +227,19 @@ func (p *Paginator) appendPagingQuery(db *gorm.DB, fields []interface{}) *gorm.D
 	stmt := db
 	stmt = stmt.Limit(p.limit + 1)
 	stmt = stmt.Order(p.buildOrderSQL())
-	if len(fields) > 0 {
-		stmt = stmt.Where(
-			p.buildCursorSQLQuery(),
-			p.buildCursorSQLQueryArgs(fields)...,
-		)
+
+	if len(fields) == 0 {
+		return stmt
 	}
-	return stmt
+
+	if p.allowTupleCmp && p.canOptimizePagingQuery() {
+		return stmt.Where(p.buildOptimizedCursorSQLQuery(), fields)
+	}
+
+	return stmt.Where(
+		p.buildCursorSQLQuery(),
+		p.buildCursorSQLQueryArgs(fields)...,
+	)
 }
 
 func (p *Paginator) buildOrderSQL() string {
@@ -246,17 +258,50 @@ func (p *Paginator) buildCursorSQLQuery() string {
 	queries := make([]string, len(p.rules))
 	query := ""
 	for i, rule := range p.rules {
-		operator := "<"
-		if (p.isForward() && rule.Order == ASC) ||
-			(p.isBackward() && rule.Order == DESC) {
-			operator = ">"
-		}
+		operator := p.getCmpOperator(rule.Order)
 		queries[i] = fmt.Sprintf("%s%s %s ?", query, rule.SQLRepr, operator)
 		query = fmt.Sprintf("%s%s = ? AND ", query, rule.SQLRepr)
 	}
 	// for exmaple:
 	// a > 1 OR a = 1 AND b > 2 OR a = 1 AND b = 2 AND c > 3
 	return strings.Join(queries, " OR ")
+}
+
+// We can only optimize paging query if sorting orders are consistent across
+// all columns used in cursor. This is a prerequisite for tuple comparison that
+// optimized queries use.
+func (p *Paginator) canOptimizePagingQuery() bool {
+	order := p.rules[0].Order
+
+	for _, rule := range p.rules {
+		if order != rule.Order {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (p *Paginator) getCmpOperator(order Order) string {
+	if (p.isForward() && order == ASC) || (p.isBackward() && order == DESC) {
+		return ">"
+	}
+
+	return "<"
+}
+
+func (p *Paginator) buildOptimizedCursorSQLQuery() string {
+	names := make([]string, len(p.rules))
+
+	for i, rule := range p.rules {
+		names[i] = rule.SQLRepr
+	}
+
+	return fmt.Sprintf(
+		"(%s) %s ?",
+		strings.Join(names, ", "),
+		p.getCmpOperator(p.rules[0].Order),
+	)
 }
 
 func (p *Paginator) buildCursorSQLQueryArgs(fields []interface{}) (args []interface{}) {

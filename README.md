@@ -190,6 +190,54 @@ Default options used by paginator when not specified:
 
 - `Order`: `paginator.DESC`
 
+- `TupleCmp`: `paginator.DISABLED`
+
+When cursor uses more than one key/rule, paginator instances by default generate SQL that is compatible with almost all database management systems. But this query can be very inefficient and can result in a lot of database scans even when proper indices are in place. By enabling the `TupleCmp` option, paginator will emit a slightly different SQL query when all cursor keys are ordered in the same way.
+
+For example, let us assume we have the following code:
+
+```go
+paginator.New(
+    paginator.WithKeys([]string{"CreatedAt", "ID"}),
+    paginate.WithAfter(after),
+    paginate.WithLimit(3),
+).Paginate(db, &result)
+```
+
+The query that hits our database in this case would look something like this:
+
+```sql
+  SELECT *
+    FROM orders
+   WHERE orders.created_at > $1
+      OR orders.created_at = $2 AND orders.id > $3
+ORDER BY orders.created_at ASC, orders.id ASC
+   LIMIT 4
+```
+
+Even if we index our table on `(created_at, id)` columns, some database engines will still perform at least full index scan to get to the items we need. And this is the primary use case for tuple comparison optimization. If we enable optimization, our code would look something like this:
+
+```go
+paginator.New(
+    paginator.WithKeys([]string{"CreatedAt", "ID"}),
+    paginate.WithAfter(after),
+    paginate.WithLimit(3),
+    paginate.WithTupleCmp(paginate.ENABLED),
+).Paginate(db, &result)
+```
+
+The query that hits our database now looks something like this:
+
+```sql
+  SELECT *
+    FROM orders
+   WHERE (orders.created_at, orders.id) > ($1, $2)
+ORDER BY orders.created_at ASC, orders.id ASC
+   LIMIT 4
+```
+
+In this case, if we have index on `(created_at, id)` columns, most DB angines will know how to optimize this query into a simple initial index lookup + scan, making cursor overhead neglible.
+
 ### paginator.Rule
 
 - `Key`: Field name in target model struct.

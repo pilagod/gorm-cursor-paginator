@@ -3,6 +3,9 @@ version: "3"
 services: 
   postgres:
     image: postgres:11-alpine
+    command:
+      - -c
+      - log_statement=all
     ports:
       - 8765:5432
     environment: 

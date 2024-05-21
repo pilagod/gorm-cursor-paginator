@@ -15,6 +15,7 @@ func (s *paginatorSuite) TestPaginateDefaultOptions() {
 	// * Key: ID
 	// * Limit: 10
 	// * Order: DESC
+	// * TupleCmp: DISABLED
 
 	var p1 []order
 	_, c, _ := New().Paginate(s.db, &p1)
@@ -191,6 +192,43 @@ func (s *paginatorSuite) TestPaginateMultipleKeys() {
 	cfg := Config{
 		Keys:  []string{"CreatedAt", "ID"},
 		Limit: 2,
+	}
+
+	var p1 []order
+	_, c, _ := New(&cfg).Paginate(s.db, &p1)
+	s.assertIDs(p1, 2, 3)
+	s.assertForwardOnly(c)
+
+	var p2 []order
+	_, c, _ = New(
+		&cfg,
+		WithAfter(*c.After),
+	).Paginate(s.db, &p2)
+	s.assertIDs(p2, 1)
+	s.assertBackwardOnly(c)
+
+	var p3 []order
+	_, c, _ = New(
+		&cfg,
+		WithBefore(*c.Before),
+	).Paginate(s.db, &p3)
+	s.assertIDs(p3, 2, 3)
+	s.assertForwardOnly(c)
+}
+
+func (s *paginatorSuite) TestPaginateMultipleKeysTupleCmp() {
+	now := time.Now()
+	// ordered by (CreatedAt desc, ID desc) -> 2, 3, 1
+	s.givenOrders([]order{
+		{ID: 1, CreatedAt: now},
+		{ID: 2, CreatedAt: now.Add(1 * time.Hour)},
+		{ID: 3, CreatedAt: now},
+	})
+
+	cfg := Config{
+		Keys:     []string{"CreatedAt", "ID"},
+		Limit:    2,
+		TupleCmp: ENABLED,
 	}
 
 	var p1 []order
