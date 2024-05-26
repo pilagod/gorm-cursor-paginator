@@ -199,8 +199,8 @@ For example, let us assume we have the following code:
 ```go
 paginator.New(
     paginator.WithKeys([]string{"CreatedAt", "ID"}),
-    paginate.WithAfter(after),
-    paginate.WithLimit(3),
+    paginator.WithAfter(after),
+    paginator.WithLimit(3),
 ).Paginate(db, &result)
 ```
 
@@ -220,9 +220,9 @@ Even if we index our table on `(created_at, id)` columns, some database engines 
 ```go
 paginator.New(
     paginator.WithKeys([]string{"CreatedAt", "ID"}),
-    paginate.WithAfter(after),
-    paginate.WithLimit(3),
-    paginate.WithTupleCmp(paginate.ENABLED),
+    paginator.WithAfter(after),
+    paginator.WithLimit(3),
+    paginator.WithTupleCmp(paginate.ENABLED),
 ).Paginate(db, &result)
 ```
 
@@ -236,7 +236,7 @@ ORDER BY orders.created_at ASC, orders.id ASC
    LIMIT 4
 ```
 
-In this case, if we have index on `(created_at, id)` columns, most DB angines will know how to optimize this query into a simple initial index lookup + scan, making cursor overhead neglible.
+In this case, if we have index on `(created_at, id)` columns, most DB engines will know how to optimize this query into a simple initial index lookup + scan, making cursor overhead negligible.
 
 ### paginator.Rule
 
