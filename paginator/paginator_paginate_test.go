@@ -253,6 +253,47 @@ func (s *paginatorSuite) TestPaginateMultipleKeysTupleCmp() {
 	s.assertForwardOnly(c)
 }
 
+func (s *paginatorSuite) TestPaginateMultipleKeysTupleCmpFallback() {
+	now := time.Now()
+	// ordered by (CreatedAt desc, ID asc) -> 2, 1, 3
+	s.givenOrders([]order{
+		{ID: 1, CreatedAt: now},
+		{ID: 2, CreatedAt: now.Add(1 * time.Hour)},
+		{ID: 3, CreatedAt: now},
+	})
+
+	rules := []Rule{
+		{Key: "CreatedAt", Order: DESC},
+		{Key: "ID", Order: ASC},
+	}
+	cfg := Config{
+		Rules: rules,
+		Limit: 2,
+	}
+
+	var p1 []order
+	_, c, _ := New(&cfg, WithAllowTupleCmp(TRUE)).Paginate(s.db, &p1)
+	s.assertIDs(p1, 2, 1)
+	s.assertForwardOnly(c)
+
+	var p2 []order
+	_, c, _ = New(
+		&cfg,
+		WithAllowTupleCmp(TRUE),
+		WithAfter(*c.After),
+	).Paginate(s.db, &p2)
+	s.assertIDs(p2, 3)
+	s.assertBackwardOnly(c)
+
+	var p3 []order
+	_, c, _ = New(
+		&cfg,
+		WithBefore(*c.Before),
+	).Paginate(s.db, &p3)
+	s.assertIDs(p3, 2, 1)
+	s.assertForwardOnly(c)
+}
+
 func (s *paginatorSuite) TestPaginatePointerKey() {
 	s.givenOrders([]order{
 		{ID: 1, Remark: ptrStr("3")},
