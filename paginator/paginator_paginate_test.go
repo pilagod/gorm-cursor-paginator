@@ -15,7 +15,7 @@ func (s *paginatorSuite) TestPaginateDefaultOptions() {
 	// * Key: ID
 	// * Limit: 10
 	// * Order: DESC
-	// * TupleCmp: DISABLED
+	// * AllowTupleCmp: FALSE
 
 	var p1 []order
 	_, c, _ := New().Paginate(s.db, &p1)
@@ -226,9 +226,9 @@ func (s *paginatorSuite) TestPaginateMultipleKeysTupleCmp() {
 	})
 
 	cfg := Config{
-		Keys:     []string{"CreatedAt", "ID"},
-		Limit:    2,
-		TupleCmp: ENABLED,
+		Keys:          []string{"CreatedAt", "ID"},
+		Limit:         2,
+		AllowTupleCmp: TRUE,
 	}
 
 	var p1 []order
