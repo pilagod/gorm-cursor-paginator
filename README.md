@@ -190,9 +190,9 @@ Default options used by paginator when not specified:
 
 - `Order`: `paginator.DESC`
 
-- `TupleCmp`: `paginator.DISABLED`
+- `AllowTupleCmp`: `paginator.FALSE`
 
-When cursor uses more than one key/rule, paginator instances by default generate SQL that is compatible with almost all database management systems. But this query can be very inefficient and can result in a lot of database scans even when proper indices are in place. By enabling the `TupleCmp` option, paginator will emit a slightly different SQL query when all cursor keys are ordered in the same way.
+When cursor uses more than one key/rule, paginator instances by default generate SQL that is compatible with almost all database management systems. But this query can be very inefficient and can result in a lot of database scans even when proper indices are in place. By enabling the `AllowTupleCmp` option, paginator will emit a slightly different SQL query when all cursor keys are ordered in the same way.
 
 For example, let us assume we have the following code:
 
@@ -222,7 +222,7 @@ paginator.New(
     paginator.WithKeys([]string{"CreatedAt", "ID"}),
     paginator.WithAfter(after),
     paginator.WithLimit(3),
-    paginator.WithTupleCmp(paginate.ENABLED),
+    paginator.WithAllowTupleCmp(paginate.TRUE),
 ).Paginate(db, &result)
 ```
 
