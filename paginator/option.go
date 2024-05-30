@@ -1,9 +1,17 @@
 package paginator
 
+type Flag string
+
+const (
+	TRUE  Flag = "TRUE"
+	FALSE Flag = "FALSE"
+)
+
 var defaultConfig = Config{
-	Keys:  []string{"ID"},
-	Limit: 10,
-	Order: DESC,
+	Keys:          []string{"ID"},
+	Limit:         10,
+	Order:         DESC,
+	AllowTupleCmp: FALSE,
 }
 
 // Option for paginator
@@ -13,12 +21,13 @@ type Option interface {
 
 // Config for paginator
 type Config struct {
-	Rules  []Rule
-	Keys   []string
-	Limit  int
-	Order  Order
-	After  string
-	Before string
+	Rules         []Rule
+	Keys          []string
+	Limit         int
+	Order         Order
+	After         string
+	Before        string
+	AllowTupleCmp Flag
 }
 
 // Apply applies config to paginator
@@ -41,6 +50,9 @@ func (c *Config) Apply(p *Paginator) {
 	}
 	if c.Before != "" {
 		p.SetBeforeCursor(c.Before)
+	}
+	if c.AllowTupleCmp != "" {
+		p.SetAllowTupleCmp(c.AllowTupleCmp == TRUE)
 	}
 }
 
@@ -83,5 +95,12 @@ func WithAfter(c string) Option {
 func WithBefore(c string) Option {
 	return &Config{
 		Before: c,
+	}
+}
+
+// WithAllowTupleCmp enables tuple comparison optimization
+func WithAllowTupleCmp(flag Flag) Option {
+	return &Config{
+		AllowTupleCmp: flag,
 	}
 }
