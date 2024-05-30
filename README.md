@@ -274,6 +274,10 @@ In this case, if we have index on `(created_at, id)` columns, most DB engines wi
 
 ## Changelog
 
+### v2.6.0
+
+- Add flag `AllowTupleCmp` to enable SQL tuple comparison for performance optimization of composite cursors ([#62](https://github.com/pilagod/gorm-cursor-paginator/pull/62)), credit to [@tadeboro](https://github.com/tadeboro).
+
 ### v2.5.0
 
 - Export `GetCursorEncoder` & `GetCursorDecoder` on `paginator.Paginator` ([#59](https://github.com/pilagod/gorm-cursor-paginator/issues/59)).
