@@ -51,3 +51,9 @@ func (s *encoderSuite) TestZeroValuePtr() {
 	_, err := e.Encode(struct{ ID *string }{})
 	s.Nil(err)
 }
+
+func (s *encoderSuite) TestSliceValue() {
+	e := NewEncoder([]EncoderField{{Key: "Slice"}})
+	_, err := e.Encode(struct{ Slice []string }{Slice: []string{"value"}})
+	s.Nil(err)
+}
