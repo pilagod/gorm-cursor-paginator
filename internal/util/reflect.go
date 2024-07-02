@@ -4,13 +4,13 @@ import (
 	"reflect"
 )
 
-// ReflectValue returns reflect value underlying given value, unwrapping pointer and slice
+// ReflectValue returns reflect value underlying given value, unwrapping pointer
 func ReflectValue(v interface{}) reflect.Value {
 	rv, ok := v.(reflect.Value)
 	if !ok {
 		rv = reflect.ValueOf(v)
 	}
-	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Slice {
+	for rv.Kind() == reflect.Ptr {
 		rv = rv.Elem()
 	}
 	return rv

@@ -164,6 +164,28 @@ func (s *encodingSuite) TestStructPtr() {
 	s.Equal(sv, *(v.(*structValue)))
 }
 
+/* slice */
+
+type sliceModel struct {
+	Value    []byte
+	ValuePtr *[]byte
+}
+
+func (s *encodingSuite) TestSlice() {
+	c, _ := s.encodeValue(sliceModel{
+		Value: []byte("123"),
+	})
+	v, _ := s.decodeValue(sliceModel{}, c)
+	s.Equal([]byte("123"), v)
+}
+
+func (s *encodingSuite) TestSlicePtr() {
+	sv := []byte("123")
+	c, _ := s.encodeValuePtr(sliceModel{ValuePtr: &sv})
+	v, _ := s.decodeValuePtr(sliceModel{}, c)
+	s.Equal(sv, *(v.(*[]byte)))
+}
+
 /* multiple */
 
 type multipleModel struct {
