@@ -17,7 +17,32 @@ func New(opts ...Option) *Paginator {
 	for _, opt := range append([]Option{&defaultConfig}, opts...) {
 		opt.Apply(p)
 	}
+
+	// if codec provided we use that, otherwise we use the default (base64) cursor implementation
+	if p.codecFactory != nil {
+		codec := p.codecFactory(p.getEncoderFields(), p.getDecoderFields())
+
+		p.cursorEncoder = codec
+		p.cursorDecoder = codec
+	} else {
+		p.cursorEncoder = cursor.NewEncoder(p.getEncoderFields())
+		p.cursorDecoder = cursor.NewDecoder(p.getDecoderFields())
+	}
+
 	return p
+}
+
+type CursorCodec interface {
+	Encode(model interface{}) (string, error)
+	Decode(cursor string, model interface{}) (fields []interface{}, err error)
+}
+
+type cursorEncoder interface {
+	Encode(model interface{}) (string, error)
+}
+
+type cursorDecoder interface {
+	Decode(cursor string, model interface{}) (fields []interface{}, err error)
 }
 
 // Paginator a builder doing pagination
@@ -27,6 +52,15 @@ type Paginator struct {
 	limit         int
 	order         Order
 	allowTupleCmp bool
+
+	cursorEncoder cursorEncoder
+	cursorDecoder cursorDecoder
+
+	codecFactory func(encoderFields []cursor.EncoderField, decoderFields []cursor.DecoderField) CursorCodec
+}
+
+func (p *Paginator) SetCursorCodecFactory(codecFactory func([]cursor.EncoderField, []cursor.DecoderField) CursorCodec) {
+	p.codecFactory = codecFactory
 }
 
 // SetRules sets paging rules
@@ -104,16 +138,6 @@ func (p *Paginator) Paginate(db *gorm.DB, dest interface{}) (result *gorm.DB, c 
 	return
 }
 
-// GetCursorEncoder returns cursor encoder based on paginator rules
-func (p *Paginator) GetCursorEncoder() *cursor.Encoder {
-	return cursor.NewEncoder(p.getEncoderFields())
-}
-
-// GetCursorDecoder returns cursor decoder based on paginator rules
-func (p *Paginator) GetCursorDecoder() *cursor.Decoder {
-	return cursor.NewDecoder(p.getDecoderFields())
-}
-
 /* private */
 
 func (p *Paginator) validate(db *gorm.DB, dest interface{}) (err error) {
@@ -189,14 +213,12 @@ func isNil(i interface{}) bool {
 }
 
 func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err error) {
-	decoder := p.GetCursorDecoder()
-
 	if p.isForward() {
-		if result, err = decoder.Decode(*p.cursor.After, dest); err != nil {
+		if result, err = p.cursorDecoder.Decode(*p.cursor.After, dest); err != nil {
 			err = ErrInvalidCursor
 		}
 	} else if p.isBackward() {
-		if result, err = decoder.Decode(*p.cursor.Before, dest); err != nil {
+		if result, err = p.cursorDecoder.Decode(*p.cursor.Before, dest); err != nil {
 			err = ErrInvalidCursor
 		}
 	}
@@ -312,10 +334,9 @@ func (p *Paginator) buildCursorSQLQueryArgs(fields []interface{}) (args []interf
 }
 
 func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Cursor, err error) {
-	encoder := p.GetCursorEncoder()
 	// encode after cursor
 	if p.isBackward() || hasMore {
-		c, err := encoder.Encode(elems.Index(elems.Len() - 1))
+		c, err := p.cursorEncoder.Encode(elems.Index(elems.Len() - 1))
 		if err != nil {
 			return Cursor{}, err
 		}
@@ -323,7 +344,7 @@ func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Curs
 	}
 	// encode before cursor
 	if p.isForward() || (hasMore && p.isBackward()) {
-		c, err := encoder.Encode(elems.Index(0))
+		c, err := p.cursorEncoder.Encode(elems.Index(0))
 		if err != nil {
 			return Cursor{}, err
 		}
