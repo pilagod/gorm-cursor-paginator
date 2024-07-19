@@ -131,6 +131,51 @@ We first need to create a `paginator.Paginator` for `User`, here are some useful
     }
     ```
 
+4. By default the library encodes cursors with `base64`. If a custom encoding/decoding implementation is required, this can be implemented and passed as part of the configuration:
+
+    ```go
+    func CreateUserPaginator(/* ... */) {
+        p := paginator.New(
+            &paginator.Config{
+                Rules: []paginator.Rule{
+                    {
+                        Key: "ID",
+                    },
+                    {
+                        Key: "JoinedAt",
+                        Order: paginator.DESC,
+                        SQLRepr: "users.created_at",
+                        NULLReplacement: "1970-01-01",
+                    },
+                },
+                Limit: 10,
+                // supply a custom implementation for the encoder/decoder 
+                CursorCodecFactory: NewCustomCodec,
+                // Order here will apply to keys without order specified.
+                // In this example paginator will order by "ID" ASC, "JoinedAt" DESC.
+                Order: paginator.ASC, 
+            },
+        )
+        // ...
+        return p
+    }
+    ```
+
+Where the `NewCustomCodec` parameter is a function with the following signature:
+
+```go
+func(encoderFields []cursor.EncoderField, decoderFields []cursor.DecoderField) CursorCodec
+```
+
+Returning an implementation conforming to the `CursorCodec` interface:
+
+```go
+type CursorCodec interface {
+    Encode(model interface{}) (string, error)
+    Decode(cursor string, model interface{}) (fields []interface{}, err error)
+}
+```
+
 After knowing how to setup the paginator, we can start paginating `User` with GORM:
 
 ```go
