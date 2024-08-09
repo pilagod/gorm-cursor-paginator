@@ -1,11 +1,16 @@
 package paginator
 
 import (
+	"fmt"
 	"reflect"
+	"strconv"
 	"time"
 
-	"github.com/pilagod/pointer"
 	"gorm.io/gorm"
+
+	pc "github.com/pilagod/gorm-cursor-paginator/v2/cursor"
+	"github.com/pilagod/gorm-cursor-paginator/v2/internal/util"
+	"github.com/pilagod/pointer"
 )
 
 func (s *paginatorSuite) TestPaginateDefaultOptions() {
@@ -644,6 +649,8 @@ func (s *paginatorSuite) TestPaginateReplaceNULL() {
 	s.assertForwardOnly(c)
 }
 
+/* Custom Type */
+
 func (s *paginatorSuite) TestPaginateCustomTypeInt() {
 	s.givenOrders(9)
 
@@ -825,6 +832,79 @@ func (s *paginatorSuite) TestPaginateCustomTypeNullable() {
 	s.Len(p5, 1)
 	s.assertForwardOnly(c)
 	s.assertIDs(p5, 1)
+}
+
+/* Custom Cursor Codec */
+
+type idCursorCodec struct{}
+
+func (c *idCursorCodec) Encode(fields []pc.EncoderField, model interface{}) (string, error) {
+	if len(fields) != 1 || fields[0].Key != "ID" {
+		return "", fmt.Errorf("ID field is required")
+	}
+	id := util.ReflectValue(model).FieldByName("ID").Interface()
+	return fmt.Sprintf("%d", id), nil
+}
+
+func (c *idCursorCodec) Decode(fields []pc.DecoderField, cursor string, model interface{}) ([]interface{}, error) {
+	if len(fields) != 1 || fields[0].Key != "ID" {
+		return nil, fmt.Errorf("ID field is required")
+	}
+	if _, ok := util.ReflectType(model).FieldByName("ID"); !ok {
+		return nil, fmt.Errorf("ID field is required on model")
+	}
+	id, err := strconv.Atoi(cursor)
+	if err != nil {
+		return nil, err
+	}
+	return []interface{}{id}, nil
+}
+
+func (s *paginatorSuite) TestPaginateCustomCodec() {
+	s.givenOrders([]order{
+		{
+			ID: 1,
+		},
+		{
+			ID: 2,
+		},
+		{
+			ID: 3,
+		},
+	})
+
+	cfg := Config{
+		Limit: 2,
+	}
+	codec := &idCursorCodec{}
+
+	var p1 []order
+	_, c, _ := New(
+		&cfg,
+		WithCursorCodec(codec),
+	).Paginate(s.db, &p1)
+	s.Len(p1, 2)
+	s.assertForwardOnly(c)
+	s.assertIDs(p1, 3, 2)
+
+	var p2 []order
+	_, c, _ = New(
+		&cfg,
+		WithCursorCodec(codec),
+		WithAfter(*c.After),
+	).Paginate(s.db, &p2)
+	s.Len(p2, 1)
+	s.assertBackwardOnly(c)
+	s.assertIDs(p2, 1)
+
+	var p3 []order
+	_, c, _ = New(
+		&cfg,
+		WithCursorCodec(codec),
+		WithBefore(*c.Before),
+	).Paginate(s.db, &p3)
+	s.Len(p3, 2)
+	s.assertIDs(p3, 3, 2)
 }
 
 /* compatibility */
