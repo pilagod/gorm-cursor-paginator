@@ -1,7 +1,5 @@
 package paginator
 
-import "github.com/pilagod/gorm-cursor-paginator/v2/cursor"
-
 type Flag string
 
 const (
@@ -14,6 +12,7 @@ var defaultConfig = Config{
 	Limit:         10,
 	Order:         DESC,
 	AllowTupleCmp: FALSE,
+	CursorCodec:   &JSONCursorCodec{},
 }
 
 // Option for paginator
@@ -30,8 +29,7 @@ type Config struct {
 	After         string
 	Before        string
 	AllowTupleCmp Flag
-
-	CursorCodecFactory func(encoderFields []cursor.EncoderField, decoderFields []cursor.DecoderField) CursorCodec
+	CursorCodec   CursorCodec
 }
 
 // Apply applies config to paginator
@@ -58,9 +56,8 @@ func (c *Config) Apply(p *Paginator) {
 	if c.AllowTupleCmp != "" {
 		p.SetAllowTupleCmp(c.AllowTupleCmp == TRUE)
 	}
-
-	if c.CursorCodecFactory != nil {
-		p.SetCursorCodecFactory(c.CursorCodecFactory)
+	if c.CursorCodec != nil {
+		p.SetCursorCodec(c.CursorCodec)
 	}
 }
 
@@ -110,5 +107,12 @@ func WithBefore(c string) Option {
 func WithAllowTupleCmp(flag Flag) Option {
 	return &Config{
 		AllowTupleCmp: flag,
+	}
+}
+
+// WithCursorCodec configures custom cursor codec
+func WithCursorCodec(codec CursorCodec) Option {
+	return &Config{
+		CursorCodec: codec,
 	}
 }
