@@ -65,3 +65,19 @@ func (s *decoderSuite) TestDecodeStructInvalidCursor() {
 	err := NewDecoder([]DecoderField{{Key: "Value"}}).DecodeStruct("123", struct{ Value string }{})
 	s.Equal(ErrInvalidCursor, err)
 }
+
+func (s *decoderSuite) TestParseDirectionAndCursor() {
+	e := NewEncoder([]EncoderField{{Key: "Slice"}})
+	c, err := e.Encode(struct{ Slice []string }{Slice: []string{"value"}})
+	s.Nil(err)
+
+	c, err = e.SerialiseDirectionAndCursor("after", c)
+	s.Nil(err)
+
+	dec := NewDecoder([]DecoderField{{Key: "Slice"}})
+	direction, plainCursor, err := dec.ParseDirectionAndCursor(c)
+
+	s.Nil(err)
+	s.Equal(direction, "after")
+	s.NotEmpty(plainCursor)
+}

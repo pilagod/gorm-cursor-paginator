@@ -57,3 +57,12 @@ func (s *encoderSuite) TestSliceValue() {
 	_, err := e.Encode(struct{ Slice []string }{Slice: []string{"value"}})
 	s.Nil(err)
 }
+
+func (s *encoderSuite) TestSerialiseDirectionAndCursor() {
+	e := NewEncoder([]EncoderField{{Key: "Slice"}})
+	c, err := e.Encode(struct{ Slice []string }{Slice: []string{"value"}})
+	s.Nil(err)
+
+	_, err = e.SerialiseDirectionAndCursor("after", c)
+	s.Nil(err)
+}

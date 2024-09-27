@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"reflect"
+	"strings"
 
 	"github.com/pilagod/gorm-cursor-paginator/v2/internal/util"
 )
@@ -32,6 +33,30 @@ func (e *Encoder) Encode(model interface{}) (string, error) {
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(b), nil
+}
+
+// SerialiseDirectionAndCursor serialises the direction and plain cursor string.
+// This should be called with the result of Encode()
+func (e *Encoder) SerialiseDirectionAndCursor(direction, plainCursor string) (string, error) {
+	b, err := base64.StdEncoding.DecodeString(plainCursor)
+	if err != nil {
+		return "", ErrInvalidCursor
+	}
+
+	var directionPrefix []byte
+
+	switch strings.ToLower(direction) {
+	case "after":
+		directionPrefix = afterPrefix
+	case "before":
+		directionPrefix = beforePrefix
+	default:
+		return "", ErrInvalidDirection
+	}
+
+	cursorBytes := append(directionPrefix, b...)
+
+	return base64.StdEncoding.EncodeToString(cursorBytes), nil
 }
 
 func (e *Encoder) marshalJSON(model interface{}) ([]byte, error) {

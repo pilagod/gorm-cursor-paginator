@@ -21,6 +21,18 @@ type CursorCodec interface {
 		cursor string,
 		model interface{},
 	) ([]interface{}, error)
+
+	// ParseDirectionAndCursor parses the direction and plain cursor. The resulting cursor can be fed to Decode()
+	ParseDirectionAndCursor(
+		cursor string,
+	) (direction, plainCursor string, err error)
+
+	// SerialiseDirectionAndCursor takes a direction and the plain cursor result from Encode()
+	// and serialises it into a directional cursor
+	SerialiseDirectionAndCursor(
+		direction string,
+		plainCursor string,
+	) (cursor string, err error)
 }
 
 // JSONCursorCodec encodes/decodes cursor in JSON format
@@ -41,4 +53,12 @@ func (*JSONCursorCodec) Decode(
 	model interface{},
 ) ([]interface{}, error) {
 	return pc.NewDecoder(fields).Decode(cursor, model)
+}
+
+func (*JSONCursorCodec) ParseDirectionAndCursor(cursor string) (direction, plainCursor string, err error) {
+	return pc.NewDecoder(nil).ParseDirectionAndCursor(cursor)
+}
+
+func (*JSONCursorCodec) SerialiseDirectionAndCursor(direction, plainCursor string) (string, error) {
+	return pc.NewEncoder(nil).SerialiseDirectionAndCursor(direction, plainCursor)
 }

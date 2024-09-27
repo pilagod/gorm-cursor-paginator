@@ -62,6 +62,28 @@ func (d *Decoder) Decode(cursor string, model interface{}) (fields []interface{}
 	return
 }
 
+// ParseDirectionAndCursor parses the direction and plain cursor string. The cursor string will then be fed to Decode()
+func (d *Decoder) ParseDirectionAndCursor(cursor string) (direction, plainCursor string, err error) {
+	b, err := base64.StdEncoding.DecodeString(cursor)
+	if err != nil {
+		return "", "", ErrInvalidCursor
+	}
+
+	var cursorBytes []byte
+
+	if bytes.HasPrefix(b, beforePrefix) {
+		direction = "before"
+		cursorBytes = bytes.TrimPrefix(b, beforePrefix)
+	} else if bytes.HasPrefix(b, afterPrefix) {
+		direction = "after"
+		cursorBytes = bytes.TrimPrefix(b, afterPrefix)
+	}
+
+	plainCursor = base64.StdEncoding.EncodeToString(cursorBytes)
+
+	return
+}
+
 // DecodeStruct decodes cursor into model, model must be a pointer to struct or it will panic.
 func (d *Decoder) DecodeStruct(cursor string, model interface{}) (err error) {
 	fields, err := d.Decode(cursor, model)
