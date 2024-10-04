@@ -71,12 +71,12 @@ func (d *Decoder) ParseDirectionAndCursor(cursor string) (direction, plainCursor
 
 	var cursorBytes []byte
 
-	if bytes.HasPrefix(b, beforePrefix) {
+	if bytes.HasPrefix(b, BeforePrefix) {
 		direction = "before"
-		cursorBytes = bytes.TrimPrefix(b, beforePrefix)
-	} else if bytes.HasPrefix(b, afterPrefix) {
+		cursorBytes = bytes.TrimPrefix(b, BeforePrefix)
+	} else if bytes.HasPrefix(b, AfterPrefix) {
 		direction = "after"
-		cursorBytes = bytes.TrimPrefix(b, afterPrefix)
+		cursorBytes = bytes.TrimPrefix(b, AfterPrefix)
 	}
 
 	plainCursor = base64.StdEncoding.EncodeToString(cursorBytes)

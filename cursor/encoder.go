@@ -47,9 +47,9 @@ func (e *Encoder) SerialiseDirectionAndCursor(direction, plainCursor string) (st
 
 	switch strings.ToLower(direction) {
 	case "after":
-		directionPrefix = afterPrefix
+		directionPrefix = AfterPrefix
 	case "before":
-		directionPrefix = beforePrefix
+		directionPrefix = BeforePrefix
 	default:
 		return "", ErrInvalidDirection
 	}
