@@ -67,6 +67,21 @@ func (p *Paginator) SetBeforeCursor(beforeCursor string) {
 	p.cursor.Before = &beforeCursor
 }
 
+func (p *Paginator) SetCursor(cursor string) error {
+	direction, cursorString, err := p.cursorCodec.ParseDirectionAndCursor(cursor)
+	if err != nil {
+		return err
+	}
+
+	if direction == "after" {
+		p.SetAfterCursor(cursorString)
+	} else if direction == "before" {
+		p.SetBeforeCursor(cursorString)
+	}
+
+	return nil
+}
+
 // SetAllowTupleCmp enables or disables tuple comparison optimization
 func (p *Paginator) SetAllowTupleCmp(allow bool) {
 	p.allowTupleCmp = allow
@@ -312,6 +327,12 @@ func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Curs
 		if err != nil {
 			return Cursor{}, err
 		}
+
+		c, err = p.cursorCodec.SerialiseDirectionAndCursor("after", c)
+		if err != nil {
+			return Cursor{}, err
+		}
+
 		result.After = &c
 	}
 	// encode before cursor
@@ -320,6 +341,12 @@ func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Curs
 		if err != nil {
 			return Cursor{}, err
 		}
+
+		c, err = p.cursorCodec.SerialiseDirectionAndCursor("before", c)
+		if err != nil {
+			return Cursor{}, err
+		}
+
 		result.Before = &c
 	}
 	return

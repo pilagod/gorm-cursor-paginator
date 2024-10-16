@@ -5,3 +5,6 @@ type Cursor struct {
 	After  *string `json:"after" query:"after"`
 	Before *string `json:"before" query:"before"`
 }
+
+var BeforePrefix = []byte("<")
+var AfterPrefix = []byte(">")

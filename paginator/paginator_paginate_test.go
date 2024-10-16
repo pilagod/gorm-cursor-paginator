@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -858,6 +859,29 @@ func (c *idCursorCodec) Decode(fields []pc.DecoderField, cursor string, model in
 		return nil, err
 	}
 	return []interface{}{id}, nil
+}
+
+func (*idCursorCodec) ParseDirectionAndCursor(cursor string) (direction, plainCursor string, err error) {
+	if strings.HasPrefix(cursor, ">") {
+		direction = "after"
+		plainCursor = cursor[1:]
+	} else if strings.HasPrefix(cursor, "<") {
+		direction = "before"
+		plainCursor = cursor[1:]
+	} else {
+		err = ErrInvalidCursor
+	}
+	return
+}
+
+func (*idCursorCodec) SerialiseDirectionAndCursor(direction, plainCursor string) (string, error) {
+	if direction == "after" {
+		return fmt.Sprintf("%s%s", ">", plainCursor), nil
+	} else if direction == "before" {
+		return fmt.Sprintf("%s%s", "<", plainCursor), nil
+	} else {
+		return "", ErrInvalidCursor
+	}
 }
 
 func (s *paginatorSuite) TestPaginateCustomCodec() {

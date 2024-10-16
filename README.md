@@ -101,6 +101,34 @@ We first need to create a `paginator.Paginator` for `User`, here are some useful
         return p
     }
     ```
+   
+If using the directional cursor functionality provided by `ParseDirectionAndCursor` & `SerialiseDirectionAndCursor`, then one can pass the directional cursor to the `SetCursor` function instead:
+
+```go
+func CreateUserPaginator(
+    directionalCursor string,
+    order *paginator.Order,
+    limit *int,
+) *paginator.Paginator {
+    p := paginator.New(
+        &paginator.Config{
+            Keys: []string{"ID", "JoinedAt"},
+            Limit: 10,
+            Order: paginator.ASC,
+        },
+    )
+    if order != nil {
+        p.SetOrder(*order)
+    }
+    if limit != nil {
+        p.SetLimit(*limit)
+    }
+    if directionalCursor != "" {
+        p.SetCursor(directionalCursor)
+    }
+    return p
+}
+```
 
 3. Configure by `paginator.Rule` for fine grained setting for each key:
 
@@ -152,15 +180,35 @@ type CursorCodec interface {
         cursor string,
         model interface{},
     ) ([]interface{}, error)
+
+    // ParseDirectionAndCursor parses the direction and plain cursor. The resulting cursor can be fed to Decode()
+    ParseDirectionAndCursor(
+        cursor string,
+    ) (direction, plainCursor string, err error)
+    
+    // SerialiseDirectionAndCursor takes a direction and the plain cursor result from Encode()
+    // and serialises it into a directional cursor
+    SerialiseDirectionAndCursor(
+        direction string,
+        plainCursor string,
+    ) (cursor string, err error)
 }
     
 type customCodec struct {}
 
-func (cc *CustomCodec) Encode(fields []pc.EncoderField, model interface{}) (string, error) {
+func (*CustomCodec) Encode(fields []pc.EncoderField, model interface{}) (string, error) {
     ...
 }
 
-func (cc *CustomCodec) Decode(fields []pc.DecoderField, cursor string, model interface{}) ([]interface{}, error) {
+func (*CustomCodec) Decode(fields []pc.DecoderField, cursor string, model interface{}) ([]interface{}, error) {
+    ...
+}
+
+func (*CustomCodec) ParseDirectionAndCursor(fields []pc.EncoderField, model interface{}) (string, error) {
+    ...
+}
+
+func (*CustomCodec) SerialiseDirectionAndCursor(fields []pc.DecoderField, cursor string, model interface{}) ([]interface{}, error) {
     ...
 }
 ```
