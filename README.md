@@ -40,6 +40,9 @@ type User struct {
 
 We first need to create a `paginator.Paginator` for `User`, here are some useful patterns:
 
+> [!NOTE] 
+> Full configurable options are noted in [Specification](#specification) section.
+
 1. Configure by `paginator.Option`, those functions with `With` prefix are factories for `paginator.Option`:
 
     ```go
@@ -102,9 +105,9 @@ We first need to create a `paginator.Paginator` for `User`, here are some useful
     }
     ```
 
-3. Configure by `paginator.Rule` for fine grained setting for each key:
+3. Configure by `paginator.Rule` with fine grained setting for individual key:
 
-    > Please refer to [Specification](#specification) for details of `paginator.Rule`.
+    > Please check [`paginator.Rule`](#paginatorrule) for more details.
 
     ```go
     func CreateUserPaginator(/* ... */) {
@@ -131,71 +134,6 @@ We first need to create a `paginator.Paginator` for `User`, here are some useful
         return p
     }
     ```
-
-4. By default the library encodes cursors with `base64`. If a custom encoding/decoding implementation is required, this can be implemented and passed as part of the configuration:
-
-
-First implement your custom codec such that it conforms to the `CursorCodec` interface:
-
-
-```go
-type CursorCodec interface {
-    // Encode encodes model fields into cursor
-    Encode(
-        fields []pc.EncoderField,
-        model interface{},
-    ) (string, error)
-
-    // Decode decodes cursor into model fields
-    Decode(
-        fields []pc.DecoderField,
-        cursor string,
-        model interface{},
-    ) ([]interface{}, error)
-}
-    
-type customCodec struct {}
-
-func (cc *CustomCodec) Encode(fields []pc.EncoderField, model interface{}) (string, error) {
-    ...
-}
-
-func (cc *CustomCodec) Decode(fields []pc.DecoderField, cursor string, model interface{}) ([]interface{}, error) {
-    ...
-}
-```
-
-Then pass an instance of your codec during initialisation:
-
-```go
-func CreateUserPaginator(/* ... */) {
-	codec := &customCodec{}
-	
-	p := paginator.New(
-        &paginator.Config{
-            Rules: []paginator.Rule{
-                {
-                    Key: "ID",
-                },
-                {
-                    Key: "JoinedAt",
-                    Order: paginator.DESC,
-                    SQLRepr: "users.created_at",
-                    NULLReplacement: "1970-01-01",
-                },
-            },
-            Limit: 10,
-            // supply a custom implementation for the encoder/decoder 
-            CursorCodec: codec,
-            // Order here will apply to keys without order specified.
-            // In this example paginator will order by "ID" ASC, "JoinedAt" DESC.
-            Order: paginator.ASC, 
-        },
-    )
-    // ...
-    return p
-}
-```
 
 After knowing how to setup the paginator, we can start paginating `User` with GORM:
 
@@ -246,63 +184,75 @@ That's all! Enjoy paginating in the GORM world. :tada:
 
 ## Specification
 
-### paginator.Paginator
+### paginator.Config
 
-Default options used by paginator when not specified:
+- `Keys`: Slice of field names in target model struct, the order presents sorting priority in query.
+    > default: `[]string["ID"]`
 
-- `Keys`: `[]string{"ID"}`
+- `Rules`: Slice of fine grained setting for individual field, the order presents sorting priority in query. This option takes precedence over `Keys`, please check [paginator.Rule](#paginatorrule) for more details.
 
-- `Limit`: `10`
+- `Limit`: Page size.
+    > default: `10`
 
-- `Order`: `paginator.DESC`
+- `Order`: Sorting field in `ASC` or `DESC` order, applying to fields in `Keys`, or in `Rule` without order specified. 
+    > default: `paginator.DESC`
 
-- `AllowTupleCmp`: `paginator.FALSE`
+- `After`: After cursor for query.
 
-When cursor uses more than one key/rule, paginator instances by default generate SQL that is compatible with almost all database management systems. But this query can be very inefficient and can result in a lot of database scans even when proper indices are in place. By enabling the `AllowTupleCmp` option, paginator will emit a slightly different SQL query when all cursor keys are ordered in the same way.
+- `Before`: Before cursor for query.
 
-For example, let us assume we have the following code:
+- `AllowTupleCmp`: Flag to enable/disable tuple comparison optimization.
+    > default: `paginator.FALSE`
 
-```go
-paginator.New(
-    paginator.WithKeys([]string{"CreatedAt", "ID"}),
-    paginator.WithAfter(after),
-    paginator.WithLimit(3),
-).Paginate(db, &result)
-```
+    When cursor uses more than one key/rule, paginator instances by default generate SQL that is compatible with almost all database management systems. But this query can be very inefficient and can result in a lot of database scans even when proper indices are in place. By enabling the `AllowTupleCmp` option, paginator will emit a slightly different SQL query when all cursor keys are ordered in the same way.
 
-The query that hits our database in this case would look something like this:
+    For example, let us assume we have the following code:
 
-```sql
-  SELECT *
-    FROM orders
-   WHERE orders.created_at > $1
-      OR orders.created_at = $2 AND orders.id > $3
-ORDER BY orders.created_at ASC, orders.id ASC
-   LIMIT 4
-```
+    ```go
+    paginator.New(
+        paginator.WithKeys([]string{"CreatedAt", "ID"}),
+        paginator.WithAfter(after),
+        paginator.WithLimit(3),
+    ).Paginate(db, &result)
+    ```
 
-Even if we index our table on `(created_at, id)` columns, some database engines will still perform at least full index scan to get to the items we need. And this is the primary use case for tuple comparison optimization. If we enable optimization, our code would look something like this:
+    The query that hits our database in this case would look something like this:
 
-```go
-paginator.New(
-    paginator.WithKeys([]string{"CreatedAt", "ID"}),
-    paginator.WithAfter(after),
-    paginator.WithLimit(3),
-    paginator.WithAllowTupleCmp(paginate.TRUE),
-).Paginate(db, &result)
-```
+    ```sql
+      SELECT *
+        FROM orders
+       WHERE orders.created_at > $1
+          OR orders.created_at = $2 AND orders.id > $3
+    ORDER BY orders.created_at ASC, orders.id ASC
+       LIMIT 4
+    ```
 
-The query that hits our database now looks something like this:
+    Even if we index our table on `(created_at, id)` columns, some database engines will still perform at least full index scan to get to the items we need. And this is the primary use case for tuple comparison optimization. If we enable optimization, our code would look something like this:
 
-```sql
-  SELECT *
-    FROM orders
-   WHERE (orders.created_at, orders.id) > ($1, $2)
-ORDER BY orders.created_at ASC, orders.id ASC
-   LIMIT 4
-```
+    ```go
+    paginator.New(
+        paginator.WithKeys([]string{"CreatedAt", "ID"}),
+        paginator.WithAfter(after),
+        paginator.WithLimit(3),
+        paginator.WithAllowTupleCmp(paginate.TRUE),
+    ).Paginate(db, &result)
+    ```
 
-In this case, if we have index on `(created_at, id)` columns, most DB engines will know how to optimize this query into a simple initial index lookup + scan, making cursor overhead negligible.
+    The query that hits our database now looks something like this:
+
+    ```sql
+      SELECT *
+        FROM orders
+       WHERE (orders.created_at, orders.id) > ($1, $2)
+    ORDER BY orders.created_at ASC, orders.id ASC
+       LIMIT 4
+    ```
+
+    In this case, if we have index on `(created_at, id)` columns, most DB engines will know how to optimize this query into a simple initial index lookup + scan, making cursor overhead negligible.
+
+- `CursorCodec`(v2.7.0): Custom cursor encoding/decoding implementation.
+
+    By default this library encodes cursors with `base64` ([reference](https://github.com/pilagod/gorm-cursor-paginator/blob/d0a99c855e3637cfbc115dab4c9db88f5ffa0675/paginator/cursor.go#L26-L44)). You can provide your own custom cursor encoding/decoding implementation, which conforms to [`CursorCodec` interface](https://github.com/pilagod/gorm-cursor-paginator/blob/d0a99c855e3637cfbc115dab4c9db88f5ffa0675/paginator/cursor.go#L10-L24), via this option.
 
 ### paginator.Rule
 
@@ -321,24 +271,30 @@ In this case, if we have index on `(created_at, id)` columns, most DB engines wi
 - `NULLReplacement`(v2.2.0): Replacement for NULL value when paginating by nullable column.
     > If you paginate by nullable column, you will encounter [NULLS { FIRST | LAST } problems](https://learnsql.com/blog/how-to-order-rows-with-nulls/). This option let you decide how to order rows with NULL value. For instance, we can set this value to `1970-01-01` for a nullable `date` column, to ensure rows with NULL date will be placed at head when order is ASC, or at tail when order is DESC.
 
-- `CustomType`: Extra information needed only when paginating across custom types (e.g. JSON). To support custom type pagination, the type needs to implement the `CustomType` interface:
+- `CustomType`: Extra information needed only when paginating across custom types (e.g. JSON). 
 
-  ```go
-  type CustomType interface {
+    To support custom type pagination, the type needs to implement the [`CustomType` interface](https://github.com/pilagod/gorm-cursor-paginator/blob/93b0b529e054ac5c17005f0f07f2c7e47f44b4a6/cursor/interfaces.go#L3-L8):
+
+    ```go
+    type CustomType interface {
       // GetCustomTypeValue returns the value corresponding to the meta attribute inside the custom type.
       GetCustomTypeValue(meta interface{}) (interface{}, error)
-  }
-  ```
+    }
+    ```
 
-  and provide the following information:
+    and provide the following information:
 
-  - `Meta`: meta attribute inside the custom type. The paginator will pass this meta attribute to the `GetCustomTypeValue` function, which should return the actual value corresponding to the meta attribute. For JSON, meta would contain the JSON key of the element inside JSON to be used for pagination.
+    - `Meta`: meta attribute inside the custom type. The paginator will pass this meta attribute to the `GetCustomTypeValue` function, which should return the actual value corresponding to the meta attribute. For JSON, meta would contain the JSON key of the element inside JSON to be used for pagination.
 
-  - `Type`: GoLang type of the meta attribute. 
+    - `Type`: GoLang type of the meta attribute. 
 
-  Also, when paginating across custom types, it is expected that the `SQLRepr` & `SQLType` are set.  `SQLRepr` should contain the SQL query to get the meta attribute value, while `SQLType` should be used for type casting if needed. Check examples of [JSON custom type](https://github.com/pilagod/gorm-cursor-paginator/blob/c91935c7488bf9907902c8005f429e719cefa96b/paginator/paginator_test.go#L65-L81) and [custom type setting](https://github.com/pilagod/gorm-cursor-paginator/blob/c91935c7488bf9907902c8005f429e719cefa96b/paginator/paginator_paginate_test.go#L567-L617).
+    Also, when paginating across custom types, it is expected that the `SQLRepr` & `SQLType` are set.  `SQLRepr` should contain the SQL query to get the meta attribute value, while `SQLType` should be used for type casting if needed. Check examples of [JSON custom type](https://github.com/pilagod/gorm-cursor-paginator/blob/c91935c7488bf9907902c8005f429e719cefa96b/paginator/paginator_test.go#L65-L81) and [custom type setting](https://github.com/pilagod/gorm-cursor-paginator/blob/c91935c7488bf9907902c8005f429e719cefa96b/paginator/paginator_paginate_test.go#L567-L617).
 
 ## Changelog
+
+### v2.7.0
+
+- Add support for custom cursor encoding/decoding implementation via `CursorCodec` option ([#66](https://github.com/pilagod/gorm-cursor-paginator/pull/66)), credit to [@sashahilton00](https://github.com/sashahilton00).
 
 ### v2.6.1
 
