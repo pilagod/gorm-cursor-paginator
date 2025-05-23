@@ -292,6 +292,10 @@ That's all! Enjoy paginating in the GORM world. :tada:
 
 ## Changelog
 
+### v2.7.0
+
+- Add support for custom cursor encoding/decoding implementation via `CursorCodec` option ([#66](https://github.com/pilagod/gorm-cursor-paginator/pull/66)), credit to [@sashahilton00](https://github.com/sashahilton00).
+
 ### v2.6.1
 
 - Fix slice encoding ([#64](https://github.com/pilagod/gorm-cursor-paginator/pull/64)), credit to [@chrisroberts](https://github.com/chrisroberts).
